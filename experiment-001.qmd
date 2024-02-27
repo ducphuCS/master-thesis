@@ -1,0 +1,69 @@
+---
+title: "Xử lý tập dữ liệu đầu vào"
+author: 
+  - name: "Nguyễn Đức Phú"
+    email: ducphu.1906@gmail.com
+    affiliations:
+      - name: Ho Chi Minh University of Technology
+        city:  Tp. Hồ Chí Minh
+        state: Vietnam
+execute: 
+  cache: true
+  echo: false
+format: 
+  html:
+    toc: true 
+    toc-title: Contents
+    toc-location: left
+    
+    embed-resources: true
+    number-sections: true 
+    number-depth: 3
+    html-math-method: katex
+
+    theme: cosmo
+
+    code-fold: true
+---
+
+#### Get list of file names and match regex
+
+```{r}
+v_file_names <- list.files("dataset/1501")
+print(paste("We have a total number of", length(v_file_names), "files"))
+```
+
+Transform to lowercase and split with `_`
+
+```{r}
+v_file_names <- stringi::stri_trans_tolower(v_file_names)
+l_splitted <- stringi::stri_split_fixed(v_file_names, "_")
+```
+
+We have set of components that is common and has no data meaning, such as `Processing`
+
+
+```{r}
+common_terms <- c("opcda.pcs7.processing", "mixer 1501", "os server 02", 'os02')
+print("Eliminating common term...")
+l_splitted_unique <- lapply(l_splitted, function(file_name) {
+  return(file_name[!(file_name %in% common_terms)])
+})
+```
+
+Double check the current length list of file names with original ones
+
+
+```{r}
+length(l_splitted_unique) == length(list.files("dataset/1501"))
+```
+
+Join remaining components of file names together, after trimming ws
+
+```{r}
+l_cleaned_name <- lapply(l_splitted_unique, function(file_name) {
+  trim_file_name <- stringi::stri_replace_all_fixed(file_name, " ", "_")
+  if (length(trim_file_name) == 1) return(trim_file_name)
+  return(stringi::stri_flatten(trim_file_name, collapse = "_"))
+})  
+```
