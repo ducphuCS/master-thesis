@@ -24,6 +24,7 @@ format:
     theme: cosmo
 
     code-fold: true
+  docx: default 
 ---
 
 #### Get list of file names and match regex
@@ -44,7 +45,7 @@ We have set of components that is common and has no data meaning, such as `Proce
 
 
 ```{r}
-common_terms <- c("opcda.pcs7.processing", "mixer 1501", "os server 02", 'os02')
+common_terms <- c("opcda.pcs7.processing", "mixer 1501", "os server 02", 'os02', "ml", "ml4m", "mx1501", "for")
 print("Eliminating common term...")
 l_splitted_unique <- lapply(l_splitted, function(file_name) {
   return(file_name[!(file_name %in% common_terms)])
@@ -67,3 +68,15 @@ l_cleaned_name <- lapply(l_splitted_unique, function(file_name) {
   return(stringi::stri_flatten(trim_file_name, collapse = "_"))
 })  
 ```
+
+We rename file in the dataset
+
+```{r}
+v_file_name <- sprintf("dataset/1501/%s", list.files("dataset/1501"))
+v_new_file_name <- sprintf("dataset/1501/%s", l_cleaned_name)
+print(paste("Counting number of file", length(v_file_name), length(v_new_file_name)))
+print("Renaming done...")
+Reduce(x = lapply(v_file_name, function(file_name) {file.rename(from = file_name, to = unlist(v_new_file_name[v_file_name == file_name]))}), 
+  f = function(x,y) {return(x & y)})
+```
+
