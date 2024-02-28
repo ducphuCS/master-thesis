@@ -27,7 +27,7 @@ format:
   docx: default 
 ---
 
-#### Get list of file names and match regex
+#### Mục tiêu: xử lý tên của các file dữ liệu đầu vào
 
 ```{r}
 v_file_names <- list.files("dataset/1501")
