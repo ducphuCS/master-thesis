@@ -1,0 +1,82 @@
+---
+title: "Xử lý tập dữ liệu đầu vào"
+author: 
+  - name: "Nguyễn Đức Phú"
+    email: ducphu.1906@gmail.com
+    affiliations:
+      - name: Ho Chi Minh University of Technology
+        city:  Tp. Hồ Chí Minh
+        state: Vietnam
+execute: 
+  cache: true
+  echo: false
+format: 
+  html:
+    toc: true 
+    toc-title: Contents
+    toc-location: left
+    
+    embed-resources: true
+    number-sections: true 
+    number-depth: 3
+    html-math-method: katex
+
+    code-fold: true
+  docx: default 
+---
+
+```{r}
+library(data.table)
+```
+
+#### Xây dựng dữ liệu metadata mẻ khuấy
+
+Gồm:
+
+- Thời gian bắt đầu
+- Thời gian kết thúc
+- Định danh của mẻ (Batch Name)
+
+```{r}
+df_batch_name <- data.table::fread("./dataset/1501/batch_name.csv")
+print(paste("Cột dữ liệu", names(df_batch_name)))
+```
+
+Lấy danh sách các mẻ 
+
+```{r}
+v_batch_name <- unique(df_batch_name[, Value])
+print(paste("Số lượng mẻ trong CSDL", length(v_batch_name), "có class", class(v_batch_name)))
+```
+
+Remove `0` from the vector. Batch name has format of `[0-9]{9}`
+
+```{r}
+v_batch_name <- sort(v_batch_name[v_batch_name != 0])
+head(v_batch_name)
+is_format_wrong <- stringi::stri_detect_regex(as.character(v_batch_name), pattern = "^\\d{9}$")
+paste("Number of wrong format batch name:", length(is_format_wrong[is_format_wrong == FALSE]))
+v_batch_name <- v_batch_name[is_format_wrong]
+paste("Number of correct format batch name:", length(v_batch_name))
+```
+
+Get the start and end of batch based on batch code
+
+```{r}
+start <- lapply(v_batch_name, function(batch) {return(min(df_batch_name[Value == batch, TS]))})
+end <- lapply(v_batch_name, function(batch) {return(max(df_batch_name[Value == batch, TS]))})
+paste("Number of start and end", length(start), "and", length(end))
+```
+
+Take a glance at the new data
+
+```{r}
+df_batch_with_batch_name <- as.data.table(list(batch_name = v_batch_name, start = start, end = end))
+df_batch_with_batch_name
+```
+
+Save data in qs format
+
+```{r}
+qs::qsave(df_batch_with_batch_name, "data/df_batch_with_batch_name.qs")
+```
