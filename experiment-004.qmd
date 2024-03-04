@@ -1,0 +1,76 @@
+---
+title: "Xử lý tập dữ liệu đầu vào"
+author: 
+  - name: "Nguyễn Đức Phú"
+    email: ducphu.1906@gmail.com
+    affiliations:
+      - name: Ho Chi Minh University of Technology
+        city:  Tp. Hồ Chí Minh
+        state: Vietnam
+execute: 
+  cache: true
+  echo: false
+format: 
+  html:
+    toc: true 
+    toc-title: Contents
+    toc-location: left
+    
+    embed-resources: true
+    number-sections: true 
+    number-depth: 3
+    html-math-method: katex
+
+    code-fold: true
+---
+
+```{r}
+library("data.table", help, pos = 2, lib.loc = NULL)
+```
+
+# Preprocess the target dataset
+
+```{r}
+df <- openxlsx::read.xlsx("dataset/labels.xlsx", sheet = "Sheet2", detectDates = FALSE)
+head(df)
+```
+
+Remove non-informative columns
+
+```{r}
+df <- as.data.table(df)
+```
+
+```{r}
+df <- df[, .(TUẦN, Ngày.tháng.năm, Ca, Mixer, Code.dầu, KL.theo.mixer, KL.thực.tế, Nước.rework, Batch, Màu, Mùi, AD, Vis, pH, SG)]
+head(df)
+```
+
+Only records of mixer 1501 are kept
+
+```{r}
+df1501 <- df[Mixer == 1501, ]
+head(df1501)
+```
+
+Check if any column has issues
+
+```{r}
+summary(df1501)
+```
+
+Checking column `TUẦN`
+
+```{r}
+paste("Counte NA values:", sum(is.na(df1501[, .(TUẦN)])))
+df1501[ is.na(TUẦN), ]
+```
+
+***Notes***: Use `Ngày.tháng.năm` to `TUẦN`
+
+Checking column `Ngày.tháng.năm`
+
+```{r}
+paste("Count NA Values:", sum(is.na(df1501[, Ngày.tháng.năm])))
+df1501[is.na(Ngày.tháng.năm), ]
+```
