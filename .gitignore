@@ -49,5 +49,6 @@ po/*~
 rsconnect/
 
 dataset/
+data/*
 
 app.r

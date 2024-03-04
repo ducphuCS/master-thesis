@@ -1,0 +1,69 @@
+---
+title: "Define the problem"
+author: 
+  - name: "Nguyễn Đức Phú"
+    email: ducphu.1906@gmail.com
+    affiliations:
+      - name: Ho Chi Minh University of Technology
+        city:  Tp. Hồ Chí Minh
+        state: Vietnam
+execute: 
+  cache: true
+  echo: false
+format: 
+  html:
+    toc: true 
+    toc-title: Contents
+    toc-location: left
+    
+    embed-resources: true
+    number-sections: true 
+    number-depth: 3
+    html-math-method: katex
+
+    code-fold: true
+---
+
+# Input
+
+What we have:
+
+- 53 datasets of 53 times series data (may be duplicated)
+- one LABEL dataset (raw)
+
+# Output
+
+Following the design of experiment (DOE), we define the outcome and our objectives
+
+## Outcome
+
+Since the LABEL dataset is the result of checking semi-products' quality criterias such as:
+
+```{r}
+df <- openxlsx::read.xlsx("dataset/labels.xlsx", sheet = "Sheet2", detectDates = TRUE)
+colnames(df)
+```
+
+Quality criterias such as `AD`, `Vis`, `pH`, `SG` with quite enough data can be used as dependent variables for the thesis
+
+## Objectives
+
+We have already identified the target. The next task is to state the objectives.
+
+Some options are
+
+- Predict the value of quality critierias, or the `regression` problem
+- Predict whether the batch is qualified, or the `binary classification` problem
+- Predict which level of `goodness` the batch belongs to, or the `multi-label classification` problem
+
+**Notes**:
+
+1. Search scientific publication for these above terms: `regression`, `binary classification` and `multi-label classification`.
+2. Some survey about the amount, advantages, dis-advantages of each type of problem in manufacturing industries.
+3. Define levels of 'goodness' in industries and which papers used the same term.
+
+The objectives of thesis is then:
+
+With statistical analysis, we will perform feature engineering on raw data of the manufacturing processes to select most impactful factors on the quality criterias of the batch.
+
+Artificiall intelligence models are then constructed with the aim to reach 95\% of confidence intervals when predicting the target.
