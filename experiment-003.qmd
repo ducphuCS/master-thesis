@@ -267,24 +267,137 @@ print("Uppercasing..")
 dt1501_ad[, Batch := stringi::stri_trans_toupper(Batch)]
 ```
 We next validate the matching between `Ngày.tháng.năm` and `Ca`.
+
+The value in column `Ngày.tháng.năm` unfortunately can not be used since user save Date in unconsistent format and can not be transformed.
+
+Therefore, we accept that `Batch` is the only time indicator here
+
 ```{r}
-print("Converting Ngày.tháng.năm to Date")
-parsed_dates <- lapply(dt1501_ad$Ngày.tháng.năm, function(date) {
-  parsed_date <- tryCatch({
-    lubridate::dmy(date)
-  }, error = function(e) {
-    NULL
-  }, warning = function(w) {
-    tryCatch({
-      new_date <- lubridate::ydm(as.Date(as.numeric(date), origin = "1899-12-30"))
-      print(pa)
-    }, error = function(e) {NA}, warning = function(w) {
-      lubridate::ymd(as.Date(as.numeric(date), origin = "1899-12-30"))
-    })
-  })
-  return(parsed_date)
-})
-lubridate::as_date(unlist(parsed_dates))
-# dt1501_ad[is.na(parsing_date(dt1501_ad$Ngày.tháng.năm))]$Ngày.tháng.năm
+colnames(dt1501_ad)
+dt1501_ad <- dt1501_ad[, .(Code.dầu, Nước.rework, Batch, AD)]
+head(dt1501_ad)
 ```
-Checking result of parsing process
+Finally, we re-name the columns
+```{r}
+colnames(dt1501_ad) <- c("sku", "amount_rework", "batch", "label")
+```
+
+#### Summary
+
+In conclusion, for criteria AD, we have already done these following processing step:
+
+1. Fill NA Value in column target (AD).
+2. Remove columns `KL.theo.mixer` and `KL.thực.tế`
+3. Convert `Nước.rework` to numeric value
+4. Re-format column `Batch` to uppercase
+5. Drop other time indicators, only keep `Batch`
+6. Rename the dataset
+
+```{r}
+data.table::setcolorder(dt1501_ad, c("label", "batch", "sku", "amount_rework"))
+qs::qsave(x = dt1501_ad, file = "data/dt_label_ad.qs")
+print("Saving done.")
+```
+
+### Vis
+
+We follow the same approach above for `Vis`
+
+Initiate dataset for `Vis`
+
+```{r}
+dt1501_vis <- dt1501[, .(Vis, Batch, Code.dầu, Nước.rework)]
+head(dt1501_vis)
+nrow(dt1501_vis)
+```
+Converting column Vis to numeric and see if there are invalid value
+
+```{r}
+dt1501_vis[is.na(as.numeric(dt1501_vis$Vis)), ]
+```
+We see that the values that are not convertable are NA value. Therefore, these data points are dropped from the dataset
+
+```{r}
+dt1501_vis[, Vis := as.numeric(Vis)]
+dt1501_vis <- dt1501_vis[!is.na(Vis), ]
+paste("Remanining data points", nrow(dt1501_vis))
+```
+Next, we convert `Nước.rework` to numeric as value. But in this case, we don't need to drop the NA value
+
+```{r}
+dt1501_vis[, Nước.rework := as.numeric(Nước.rework)]
+summary(dt1501_vis)
+```
+After summarise the data table, we can see that the min value for Vis is `3.18`, which is not possible so may be this is an outlier.
+
+Starting with 200 as the lower limit
+
+```{r}
+dt1501_vis[Vis < 200, ]
+```
+
+Next, we use 500, which is half of the first quarter
+
+```{r}
+dt1501_vis[Vis < 500, ]
+```
+
+There are lots of data points whose Vis under 500 so we can lower the setpoint to 300
+
+```{r}
+print("Which SKUs have value of Vis under 300")
+unique(dt1501_vis[Vis < 300, Code.dầu])
+```
+Naturally, we calculate the proportion of batches belong to above SKU that have Vis value under 300
+
+```{r}
+lapply(unique(dt1501_vis[Vis < 300, Code.dầu]), function(val_sku) {
+  paste(val_sku, ":", nrow(dt1501_vis[Vis < 300 & Code.dầu == val_sku, ]) / nrow(dt1501_vis[Code.dầu == val_sku, ]) * 100, "%")
+})
+```
+Those SKUs that have vis-under-300 proportion smaller than `2%` are considered outlier and, hence, these data points will be removed
+
+```{r}
+l_sku_vis_under_300_outlier <- lapply(unique(dt1501_vis[Vis < 300, Code.dầu]), function(val_sku) {
+  val_prop <- nrow(dt1501_vis[Vis < 300 & Code.dầu == val_sku, ]) / nrow(dt1501_vis[Code.dầu == val_sku, ]) * 100
+  if (val_prop < 2) {
+    return(val_sku)
+  } else {
+    return(NULL)
+  }
+})
+l_sku_vis_under_300_outlier <- unlist(l_sku_vis_under_300_outlier)
+l_sku_vis_under_300_outlier <- l_sku_vis_under_300_outlier[!is.null(l_sku_vis_under_300_outlier)]
+print(l_sku_vis_under_300_outlier)
+```
+Removing these data points whose vis under 300 and belong to above SKU
+```{r}
+dt1501_vis <- dt1501_vis[!(Vis < 300 & Code.dầu %in% (l_sku_vis_under_300_outlier)), ]
+paste("Remaining", nrow(dt1501_vis))
+```
+
+Just like `AD`, `Batch` will be checked whether it compromises with the pattern
+
+```{r}
+print("Number of record following pattern")
+sum(stringi::stri_detect_regex(dt1501_vis$Batch, patter = "[0-9]{6}[Mm][0-9]{3}"))
+paste("Over", nrow(dt1501_vis))
+```
+For consistency, we convert all the lowercase `m` to uppercase.
+
+```{r}
+print("Uppercasing..")
+dt1501_vis[, Batch := stringi::stri_trans_toupper(Batch)]
+```
+Rename the columns as with `AD`
+
+```{r}
+colnames(dt1501_vis) <- c("label", "batch", "sku", "amount_rework")
+head(dt1501_vis)
+```
+Finally, we save the dataset
+
+```{r}
+qs::qsave(dt1501_vis, "data/dt_label_vis.qs")
+print("Saving done.")
+```

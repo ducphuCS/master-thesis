@@ -3154,6 +3154,7 @@ window.Quarto = {
   <li><a href="#data-preprocessing" id="toc-data-preprocessing" class="nav-link" data-scroll-target="#data-preprocessing"><span class="header-section-number">5.1</span> Data preprocessing</a>
   <ul class="collapse">
   <li><a href="#ad" id="toc-ad" class="nav-link" data-scroll-target="#ad"><span class="header-section-number">5.1.1</span> AD</a></li>
+  <li><a href="#vis" id="toc-vis" class="nav-link" data-scroll-target="#vis"><span class="header-section-number">5.1.2</span> Vis</a></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -4077,779 +4078,313 @@ window.Quarto = {
 </div>
 </div>
 <p>We next validate the matching between <code>Ngày.tháng.năm</code> and <code>Ca</code>.</p>
+<p>The value in column <code>Ngày.tháng.năm</code> unfortunately can not be used since user save Date in unconsistent format and can not be transformed.</p>
+<p>Therefore, we accept that <code>Batch</code> is the only time indicator here</p>
 <div class="cell">
 <div class="cell-output cell-output-stdout">
-<pre><code>[1] &quot;Converting Ngày.tháng.năm to Date&quot;</code></pre>
+<pre><code>[1] &quot;TUẦN&quot;           &quot;Ngày.tháng.năm&quot; &quot;Ca&quot;             &quot;Mixer&quot;         
+[5] &quot;Code.dầu&quot;       &quot;Nước.rework&quot;    &quot;Batch&quot;          &quot;AD&quot;            </code></pre>
 </div>
 <div class="cell-output cell-output-stdout">
-<pre><code>   [1] NA           NA           NA           NA           NA          
-   [6] NA           NA           NA           NA           NA          
-  [11] NA           NA           NA           NA           NA          
-  [16] NA           NA           NA           NA           NA          
-  [21] NA           NA           NA           NA           NA          
-  [26] NA           NA           NA           NA           NA          
-  [31] NA           NA           NA           NA           NA          
-  [36] NA           NA           NA           NA           NA          
-  [41] NA           NA           NA           NA           NA          
-  [46] NA           NA           NA           NA           NA          
-  [51] NA           NA           NA           NA           NA          
-  [56] NA           NA           NA           NA           NA          
-  [61] NA           NA           NA           NA           NA          
-  [66] NA           NA           NA           NA           NA          
-  [71] NA           NA           NA           NA           NA          
-  [76] NA           NA           NA           NA           NA          
-  [81] NA           NA           NA           NA           NA          
-  [86] NA           NA           NA           NA           NA          
-  [91] NA           NA           NA           NA           NA          
-  [96] NA           NA           NA           NA           NA          
- [101] NA           NA           NA           NA           NA          
- [106] NA           NA           NA           NA           NA          
- [111] NA           NA           NA           NA           NA          
- [116] NA           NA           NA           NA           NA          
- [121] NA           NA           NA           NA           NA          
- [126] NA           NA           NA           NA           NA          
- [131] NA           NA           NA           NA           NA          
- [136] NA           NA           NA           NA           NA          
- [141] NA           NA           NA           NA           NA          
- [146] NA           NA           NA           NA           NA          
- [151] NA           NA           NA           NA           NA          
- [156] NA           NA           NA           NA           NA          
- [161] NA           NA           NA           NA           NA          
- [166] NA           NA           NA           NA           NA          
- [171] NA           NA           NA           NA           NA          
- [176] NA           NA           NA           NA           NA          
- [181] NA           NA           NA           NA           NA          
- [186] NA           NA           NA           NA           NA          
- [191] NA           NA           NA           NA           NA          
- [196] NA           NA           NA           NA           NA          
- [201] NA           NA           NA           NA           NA          
- [206] NA           NA           NA           NA           NA          
- [211] NA           NA           NA           NA           &quot;2023-01-13&quot;
- [216] &quot;2023-01-13&quot; &quot;2023-01-13&quot; &quot;2023-01-13&quot; &quot;2023-01-13&quot; &quot;2023-01-13&quot;
- [221] &quot;2023-01-13&quot; &quot;2023-01-13&quot; &quot;2023-01-13&quot; &quot;2023-01-13&quot; &quot;2023-01-13&quot;
- [226] &quot;2023-01-13&quot; &quot;2023-01-13&quot; &quot;2023-01-13&quot; &quot;2023-01-13&quot; &quot;2023-01-13&quot;
- [231] &quot;2023-01-13&quot; &quot;2023-01-13&quot; &quot;2023-01-13&quot; &quot;2023-01-13&quot; &quot;2023-01-13&quot;
- [236] &quot;2023-01-13&quot; &quot;2023-01-13&quot; &quot;2023-01-13&quot; &quot;2023-01-13&quot; &quot;2023-01-14&quot;
- [241] &quot;2023-01-14&quot; &quot;2023-01-14&quot; &quot;2023-01-14&quot; &quot;2023-01-14&quot; &quot;2023-01-14&quot;
- [246] &quot;2023-01-14&quot; &quot;2023-01-14&quot; &quot;2023-01-14&quot; &quot;2023-01-14&quot; &quot;2023-01-14&quot;
- [251] &quot;2023-01-14&quot; &quot;2023-01-14&quot; &quot;2023-01-14&quot; &quot;2023-01-14&quot; &quot;2023-01-14&quot;
- [256] &quot;2023-01-14&quot; &quot;2023-01-14&quot; &quot;2023-01-14&quot; &quot;2023-01-14&quot; &quot;2023-01-14&quot;
- [261] &quot;2023-01-14&quot; &quot;2023-01-14&quot; &quot;2023-01-14&quot; &quot;2023-01-14&quot; &quot;2023-01-14&quot;
- [266] &quot;2023-01-14&quot; &quot;2023-01-14&quot; &quot;2023-01-14&quot; &quot;2023-01-14&quot; &quot;2023-01-15&quot;
- [271] &quot;2023-01-15&quot; &quot;2023-01-15&quot; &quot;2023-01-15&quot; &quot;2023-01-16&quot; &quot;2023-01-16&quot;
- [276] &quot;2023-01-16&quot; &quot;2023-01-16&quot; &quot;2023-01-16&quot; &quot;2023-01-16&quot; &quot;2023-01-16&quot;
- [281] &quot;2023-01-16&quot; &quot;2023-01-16&quot; &quot;2023-01-16&quot; &quot;2023-01-16&quot; &quot;2023-01-16&quot;
- [286] &quot;2023-01-16&quot; &quot;2023-01-16&quot; &quot;2023-01-16&quot; &quot;2023-01-16&quot; &quot;2023-01-16&quot;
- [291] &quot;2023-01-16&quot; &quot;2023-01-16&quot; &quot;2023-01-16&quot; &quot;2023-01-17&quot; &quot;2023-01-17&quot;
- [296] &quot;2023-01-17&quot; &quot;2023-01-17&quot; &quot;2023-01-17&quot; &quot;2023-01-17&quot; &quot;2023-01-17&quot;
- [301] &quot;2023-01-17&quot; &quot;2023-01-17&quot; &quot;2023-01-17&quot; &quot;2023-01-17&quot; &quot;2023-01-17&quot;
- [306] &quot;2023-01-17&quot; &quot;2023-01-17&quot; &quot;2023-01-17&quot; &quot;2023-01-17&quot; &quot;2023-01-17&quot;
- [311] &quot;2023-01-17&quot; &quot;2023-01-17&quot; &quot;2023-01-17&quot; &quot;2023-01-17&quot; &quot;2023-01-17&quot;
- [316] &quot;2023-01-17&quot; &quot;2023-01-17&quot; &quot;2023-01-17&quot; &quot;2023-01-18&quot; &quot;2023-01-18&quot;
- [321] &quot;2023-01-18&quot; &quot;2023-01-18&quot; &quot;2023-01-18&quot; &quot;2023-01-18&quot; &quot;2023-01-18&quot;
- [326] &quot;2023-01-18&quot; &quot;2023-01-18&quot; &quot;2023-01-18&quot; &quot;2023-01-18&quot; &quot;2023-01-18&quot;
- [331] &quot;2023-01-18&quot; &quot;2023-01-18&quot; &quot;2023-01-18&quot; &quot;2023-01-19&quot; &quot;2023-01-19&quot;
- [336] &quot;2023-01-19&quot; &quot;2023-01-27&quot; &quot;2023-01-27&quot; &quot;2023-01-27&quot; &quot;2023-01-27&quot;
- [341] &quot;2023-01-27&quot; &quot;2023-01-27&quot; &quot;2023-01-27&quot; &quot;2023-01-27&quot; &quot;2023-01-27&quot;
- [346] &quot;2023-01-27&quot; &quot;2023-01-27&quot; &quot;2023-01-28&quot; &quot;2023-01-28&quot; &quot;2023-01-28&quot;
- [351] &quot;2023-01-28&quot; &quot;2023-01-28&quot; &quot;2023-01-28&quot; &quot;2023-01-28&quot; &quot;2023-01-28&quot;
- [356] &quot;2023-01-28&quot; &quot;2023-01-28&quot; &quot;2023-01-28&quot; &quot;2023-01-28&quot; &quot;2023-01-28&quot;
- [361] &quot;2023-01-30&quot; &quot;2023-01-30&quot; &quot;2023-01-30&quot; &quot;2023-01-30&quot; &quot;2023-01-30&quot;
- [366] &quot;2023-01-30&quot; &quot;2023-01-30&quot; &quot;2023-01-30&quot; &quot;2023-01-30&quot; &quot;2023-01-30&quot;
- [371] &quot;2023-01-30&quot; &quot;2023-01-30&quot; &quot;2023-01-30&quot; &quot;2023-01-30&quot; &quot;2023-01-31&quot;
- [376] &quot;2023-01-31&quot; &quot;2023-01-31&quot; &quot;2023-01-31&quot; &quot;2023-01-31&quot; &quot;2023-01-31&quot;
- [381] &quot;2023-01-31&quot; &quot;2023-01-31&quot; &quot;2023-01-31&quot; &quot;2023-01-31&quot; &quot;2023-01-31&quot;
- [386] &quot;2023-01-31&quot; &quot;2023-01-31&quot; &quot;2023-01-31&quot; &quot;2023-01-31&quot; &quot;2023-01-31&quot;
- [391] &quot;2023-01-31&quot; &quot;2023-01-31&quot; &quot;2023-01-31&quot; &quot;2023-01-31&quot; &quot;2023-01-31&quot;
- [396] &quot;2023-01-31&quot; &quot;2023-01-31&quot; NA           NA           NA          
- [401] NA           NA           NA           NA           NA          
- [406] NA           NA           NA           NA           NA          
- [411] NA           NA           NA           NA           NA          
- [416] NA           NA           NA           NA           NA          
- [421] NA           NA           NA           NA           NA          
- [426] NA           NA           NA           NA           NA          
- [431] NA           NA           NA           NA           NA          
- [436] NA           NA           NA           NA           NA          
- [441] NA           NA           NA           NA           NA          
- [446] NA           NA           NA           NA           NA          
- [451] NA           NA           NA           NA           NA          
- [456] NA           NA           NA           NA           NA          
- [461] NA           NA           NA           NA           NA          
- [466] NA           NA           NA           NA           NA          
- [471] NA           NA           NA           NA           NA          
- [476] NA           NA           NA           NA           NA          
- [481] NA           NA           NA           NA           NA          
- [486] NA           NA           NA           NA           NA          
- [491] NA           NA           NA           NA           NA          
- [496] NA           NA           NA           NA           NA          
- [501] NA           NA           NA           NA           NA          
- [506] NA           NA           NA           NA           NA          
- [511] NA           NA           NA           NA           NA          
- [516] NA           NA           NA           NA           NA          
- [521] NA           NA           NA           NA           NA          
- [526] NA           NA           NA           NA           NA          
- [531] NA           NA           NA           NA           NA          
- [536] NA           NA           NA           NA           NA          
- [541] NA           NA           NA           NA           NA          
- [546] NA           NA           NA           NA           NA          
- [551] NA           NA           NA           NA           NA          
- [556] NA           NA           NA           NA           NA          
- [561] NA           NA           NA           NA           NA          
- [566] NA           NA           NA           NA           NA          
- [571] NA           NA           NA           NA           NA          
- [576] NA           NA           NA           NA           NA          
- [581] NA           NA           NA           NA           NA          
- [586] NA           NA           NA           NA           NA          
- [591] NA           NA           NA           NA           NA          
- [596] NA           NA           NA           NA           &quot;2023-02-13&quot;
- [601] &quot;2023-02-13&quot; &quot;2023-02-13&quot; &quot;2023-02-13&quot; &quot;2023-02-13&quot; &quot;2023-02-13&quot;
- [606] &quot;2023-02-13&quot; &quot;2023-02-13&quot; &quot;2023-02-13&quot; &quot;2023-02-13&quot; &quot;2023-02-13&quot;
- [611] &quot;2023-02-13&quot; &quot;2023-02-13&quot; &quot;2023-02-13&quot; &quot;2023-02-13&quot; &quot;2023-02-13&quot;
- [616] &quot;2023-02-13&quot; &quot;2023-02-13&quot; &quot;2023-02-13&quot; &quot;2023-02-13&quot; &quot;2023-02-14&quot;
- [621] &quot;2023-02-14&quot; &quot;2023-02-14&quot; &quot;2023-02-14&quot; &quot;2023-02-14&quot; &quot;2023-02-14&quot;
- [626] &quot;2023-02-14&quot; &quot;2023-02-14&quot; &quot;2023-02-14&quot; &quot;2023-02-14&quot; &quot;2023-02-14&quot;
- [631] &quot;2023-02-14&quot; &quot;2023-02-14&quot; &quot;2023-02-14&quot; &quot;2023-02-14&quot; &quot;2023-02-14&quot;
- [636] &quot;2071-02-14&quot; &quot;2072-02-14&quot; &quot;2073-02-14&quot; &quot;2074-02-14&quot; &quot;2075-02-14&quot;
- [641] &quot;2076-02-15&quot; &quot;2076-02-15&quot; &quot;2076-02-15&quot; &quot;2076-02-15&quot; &quot;2076-02-15&quot;
- [646] &quot;2076-02-15&quot; &quot;2076-02-15&quot; &quot;2076-02-15&quot; &quot;2076-02-15&quot; &quot;2076-02-15&quot;
- [651] &quot;2076-02-15&quot; &quot;2076-02-15&quot; &quot;2076-02-15&quot; &quot;2076-02-15&quot; &quot;2076-02-15&quot;
- [656] &quot;2076-02-15&quot; &quot;2076-02-15&quot; &quot;2076-02-15&quot; &quot;2076-02-15&quot; &quot;2076-02-15&quot;
- [661] &quot;2023-02-16&quot; &quot;2023-02-16&quot; &quot;2023-02-16&quot; &quot;2023-02-16&quot; &quot;2023-02-16&quot;
- [666] &quot;2023-02-16&quot; &quot;2023-02-16&quot; &quot;2023-02-16&quot; &quot;2023-02-16&quot; &quot;2023-02-16&quot;
- [671] &quot;2023-02-16&quot; &quot;2023-02-16&quot; &quot;2023-02-16&quot; &quot;2023-02-16&quot; &quot;2023-02-16&quot;
- [676] &quot;2023-02-16&quot; &quot;2023-02-16&quot; &quot;2023-02-16&quot; &quot;2023-02-16&quot; &quot;2023-02-17&quot;
- [681] &quot;2023-02-17&quot; &quot;2023-02-17&quot; &quot;2023-02-17&quot; &quot;2023-02-17&quot; &quot;2023-02-17&quot;
- [686] &quot;2023-02-17&quot; &quot;2023-02-17&quot; &quot;2023-02-17&quot; &quot;2023-02-17&quot; &quot;2023-02-17&quot;
- [691] &quot;2023-02-17&quot; &quot;2023-02-17&quot; &quot;2023-02-17&quot; &quot;2023-02-17&quot; &quot;2023-02-17&quot;
- [696] &quot;2023-02-17&quot; &quot;2023-02-17&quot; &quot;2023-02-17&quot; &quot;2023-02-17&quot; &quot;2023-02-17&quot;
- [701] &quot;2023-02-17&quot; &quot;2023-02-18&quot; &quot;2023-02-18&quot; &quot;2023-02-18&quot; &quot;2023-02-18&quot;
- [706] &quot;2023-02-18&quot; &quot;2023-02-18&quot; &quot;2023-02-18&quot; &quot;2023-02-18&quot; &quot;2023-02-18&quot;
- [711] &quot;2023-02-18&quot; &quot;2023-02-18&quot; &quot;2023-02-18&quot; &quot;2023-02-18&quot; &quot;2023-02-18&quot;
- [716] &quot;2023-02-18&quot; &quot;2023-02-18&quot; &quot;2023-02-18&quot; &quot;2023-02-18&quot; &quot;2023-02-18&quot;
- [721] &quot;2023-02-18&quot; &quot;2023-02-18&quot; &quot;2023-02-18&quot; &quot;2023-02-18&quot; &quot;2023-02-18&quot;
- [726] &quot;2023-02-18&quot; &quot;2023-02-18&quot; &quot;2023-02-19&quot; &quot;2023-02-19&quot; &quot;2023-02-20&quot;
- [731] &quot;2023-02-20&quot; &quot;2023-02-20&quot; &quot;2023-02-20&quot; &quot;2023-02-20&quot; &quot;2023-02-20&quot;
- [736] &quot;2023-02-20&quot; &quot;2023-02-20&quot; &quot;2023-02-20&quot; &quot;2023-02-20&quot; &quot;2023-02-20&quot;
- [741] &quot;2023-02-20&quot; &quot;2023-02-20&quot; &quot;2023-02-20&quot; &quot;2023-02-20&quot; &quot;2023-02-20&quot;
- [746] &quot;2023-02-21&quot; &quot;2023-02-21&quot; &quot;2023-02-21&quot; &quot;2023-02-21&quot; &quot;2023-02-21&quot;
- [751] &quot;2023-02-21&quot; &quot;2023-02-21&quot; &quot;2023-02-21&quot; &quot;2023-02-21&quot; &quot;2023-02-21&quot;
- [756] &quot;2023-02-21&quot; &quot;2023-02-21&quot; &quot;2023-02-21&quot; &quot;2023-02-21&quot; &quot;2023-02-21&quot;
- [761] &quot;2023-02-21&quot; &quot;2023-02-21&quot; &quot;2023-02-21&quot; &quot;2023-02-22&quot; &quot;2023-02-22&quot;
- [766] &quot;2023-02-22&quot; &quot;2023-02-22&quot; &quot;2023-02-22&quot; &quot;2023-02-22&quot; &quot;2023-02-22&quot;
- [771] &quot;2023-02-22&quot; &quot;2023-02-22&quot; &quot;2023-02-22&quot; &quot;2023-02-22&quot; &quot;2023-02-22&quot;
- [776] &quot;2023-02-22&quot; &quot;2023-02-22&quot; &quot;2023-02-22&quot; &quot;2023-02-22&quot; &quot;2023-02-22&quot;
- [781] &quot;2023-02-22&quot; &quot;2023-02-22&quot; &quot;2023-02-23&quot; &quot;2023-02-23&quot; &quot;2023-02-23&quot;
- [786] &quot;2023-02-23&quot; &quot;2023-02-23&quot; &quot;2023-02-23&quot; &quot;2023-02-23&quot; &quot;2023-02-23&quot;
- [791] &quot;2023-02-23&quot; &quot;2023-02-23&quot; &quot;2023-02-23&quot; &quot;2023-02-23&quot; &quot;2023-02-23&quot;
- [796] &quot;2023-02-23&quot; &quot;2023-02-23&quot; &quot;2023-02-23&quot; &quot;2023-02-23&quot; &quot;2023-02-23&quot;
- [801] &quot;2023-02-24&quot; &quot;2023-02-24&quot; &quot;2023-02-24&quot; &quot;2023-02-24&quot; &quot;2023-02-24&quot;
- [806] &quot;2023-02-24&quot; &quot;2023-02-24&quot; &quot;2023-02-24&quot; &quot;2023-02-24&quot; &quot;2023-02-24&quot;
- [811] &quot;2023-02-24&quot; &quot;2023-02-24&quot; &quot;2023-02-24&quot; &quot;2023-02-24&quot; &quot;2023-02-24&quot;
- [816] &quot;2023-02-24&quot; &quot;2023-02-24&quot; &quot;2023-02-24&quot; &quot;2023-02-25&quot; &quot;2023-02-25&quot;
- [821] &quot;2023-02-25&quot; &quot;2023-02-25&quot; &quot;2023-02-25&quot; &quot;2023-02-25&quot; &quot;2023-02-25&quot;
- [826] &quot;2023-02-25&quot; &quot;2023-02-25&quot; &quot;2023-02-25&quot; &quot;2023-02-25&quot; &quot;2023-02-25&quot;
- [831] &quot;2023-02-26&quot; &quot;2023-02-26&quot; &quot;2023-02-27&quot; &quot;2023-02-27&quot; &quot;2023-02-27&quot;
- [836] &quot;2023-02-27&quot; &quot;2023-02-27&quot; &quot;2023-02-27&quot; &quot;2023-02-27&quot; &quot;2023-02-27&quot;
- [841] &quot;2023-02-27&quot; &quot;2023-02-27&quot; &quot;2023-02-27&quot; &quot;2023-02-27&quot; &quot;2023-02-27&quot;
- [846] &quot;2023-02-27&quot; &quot;2023-02-27&quot; &quot;2023-02-27&quot; &quot;2023-02-27&quot; &quot;2023-02-27&quot;
- [851] &quot;2023-02-27&quot; &quot;2023-02-27&quot; &quot;2023-02-27&quot; &quot;2023-02-27&quot; &quot;2023-02-28&quot;
- [856] &quot;2023-02-28&quot; &quot;2023-02-28&quot; &quot;2023-02-28&quot; &quot;2023-02-28&quot; &quot;2023-02-28&quot;
- [861] &quot;2023-02-28&quot; &quot;2023-02-28&quot; &quot;2023-02-28&quot; &quot;2031-02-28&quot; &quot;2032-02-28&quot;
- [866] &quot;2034-02-28&quot; &quot;2037-02-28&quot; NA           NA           NA          
- [871] NA           NA           NA           NA           NA          
- [876] NA           NA           NA           NA           NA          
- [881] NA           NA           NA           NA           NA          
- [886] NA           NA           NA           NA           NA          
- [891] NA           NA           NA           NA           NA          
- [896] NA           NA           NA           NA           NA          
- [901] NA           NA           NA           NA           NA          
- [906] NA           NA           NA           NA           NA          
- [911] NA           NA           NA           NA           NA          
- [916] NA           NA           NA           NA           NA          
- [921] NA           NA           NA           NA           NA          
- [926] NA           NA           NA           NA           NA          
- [931] NA           NA           NA           NA           NA          
- [936] NA           NA           NA           NA           NA          
- [941] NA           NA           NA           NA           NA          
- [946] NA           NA           NA           NA           NA          
- [951] NA           NA           NA           NA           NA          
- [956] NA           NA           NA           NA           NA          
- [961] NA           NA           NA           NA           NA          
- [966] NA           NA           NA           NA           NA          
- [971] NA           NA           NA           NA           NA          
- [976] NA           NA           NA           NA           NA          
- [981] NA           NA           NA           NA           NA          
- [986] NA           NA           NA           NA           NA          
- [991] NA           NA           NA           NA           NA          
- [996] NA           NA           NA           NA           NA          
-[1001] NA           NA           NA           NA           NA          
-[1006] NA           NA           NA           NA           NA          
-[1011] NA           NA           NA           NA           NA          
-[1016] NA           NA           NA           NA           NA          
-[1021] NA           NA           NA           NA           NA          
-[1026] NA           NA           NA           NA           NA          
-[1031] NA           NA           NA           NA           NA          
-[1036] NA           NA           NA           NA           NA          
-[1041] NA           NA           NA           NA           NA          
-[1046] NA           NA           NA           NA           NA          
-[1051] NA           NA           NA           NA           NA          
-[1056] NA           NA           NA           NA           NA          
-[1061] NA           NA           NA           NA           NA          
-[1066] NA           NA           NA           NA           NA          
-[1071] NA           NA           NA           NA           NA          
-[1076] NA           NA           NA           NA           NA          
-[1081] NA           NA           &quot;2023-03-13&quot; &quot;2023-03-13&quot; &quot;2023-03-13&quot;
-[1086] &quot;2023-03-13&quot; &quot;2023-03-13&quot; &quot;2023-03-13&quot; &quot;2023-03-13&quot; &quot;2023-03-13&quot;
-[1091] &quot;2023-03-13&quot; &quot;2023-03-13&quot; &quot;2023-03-13&quot; &quot;2023-03-13&quot; &quot;2023-03-14&quot;
-[1096] &quot;2023-03-14&quot; &quot;2023-03-14&quot; &quot;2023-03-14&quot; &quot;2023-03-14&quot; &quot;2023-03-14&quot;
-[1101] &quot;2023-03-14&quot; &quot;2023-03-14&quot; &quot;2023-03-14&quot; &quot;2023-03-14&quot; &quot;2023-03-14&quot;
-[1106] &quot;2023-03-14&quot; &quot;2023-03-14&quot; &quot;2023-03-14&quot; &quot;2023-03-14&quot; &quot;2023-03-14&quot;
-[1111] &quot;2023-03-14&quot; &quot;2023-03-14&quot; &quot;2023-03-14&quot; &quot;2023-03-14&quot; &quot;2023-03-15&quot;
-[1116] &quot;2023-03-15&quot; &quot;2023-03-15&quot; &quot;2023-03-15&quot; &quot;2023-03-15&quot; &quot;2023-03-15&quot;
-[1121] &quot;2023-03-15&quot; &quot;2023-03-15&quot; &quot;2023-03-15&quot; &quot;2023-03-15&quot; &quot;2023-03-15&quot;
-[1126] &quot;2023-03-15&quot; &quot;2023-03-15&quot; &quot;2023-03-15&quot; &quot;2023-03-15&quot; &quot;2023-03-15&quot;
-[1131] &quot;2023-03-15&quot; &quot;2023-03-15&quot; &quot;2023-03-15&quot; &quot;2023-03-15&quot; &quot;2023-03-15&quot;
-[1136] &quot;2023-03-15&quot; &quot;2023-03-15&quot; &quot;2023-03-15&quot; &quot;2023-03-15&quot; &quot;2023-03-15&quot;
-[1141] &quot;2023-03-15&quot; &quot;2023-03-15&quot; &quot;2023-03-15&quot; &quot;2023-03-15&quot; &quot;2023-03-15&quot;
-[1146] &quot;2023-03-15&quot; &quot;2023-03-15&quot; &quot;2023-03-16&quot; &quot;2023-03-16&quot; &quot;2023-03-16&quot;
-[1151] &quot;2023-03-16&quot; &quot;2023-03-16&quot; &quot;2023-03-16&quot; &quot;2023-03-16&quot; &quot;2023-03-16&quot;
-[1156] &quot;2023-03-16&quot; &quot;2023-03-16&quot; &quot;2023-03-16&quot; &quot;2023-03-16&quot; &quot;2023-03-16&quot;
-[1161] &quot;2023-03-16&quot; &quot;2023-03-16&quot; &quot;2023-03-16&quot; &quot;2023-03-16&quot; &quot;2023-03-16&quot;
-[1166] &quot;2023-03-16&quot; &quot;2023-03-16&quot; &quot;2023-03-16&quot; &quot;2023-03-16&quot; &quot;2023-03-17&quot;
-[1171] &quot;2023-03-17&quot; &quot;2023-03-17&quot; &quot;2023-03-17&quot; &quot;2023-03-17&quot; &quot;2023-03-17&quot;
-[1176] &quot;2023-03-17&quot; &quot;2023-03-17&quot; &quot;2023-03-17&quot; &quot;2023-03-17&quot; &quot;2023-03-17&quot;
-[1181] &quot;2023-03-17&quot; &quot;2023-03-17&quot; &quot;2023-03-17&quot; &quot;2023-03-17&quot; &quot;2023-03-17&quot;
-[1186] &quot;2023-03-17&quot; &quot;2023-03-17&quot; &quot;2023-03-17&quot; &quot;2023-03-17&quot; &quot;2023-03-17&quot;
-[1191] &quot;2023-03-17&quot; &quot;2023-03-18&quot; &quot;2023-03-18&quot; &quot;2023-03-18&quot; &quot;2023-03-18&quot;
-[1196] &quot;2023-03-18&quot; &quot;2023-03-18&quot; &quot;2023-03-18&quot; &quot;2023-03-18&quot; &quot;2023-03-18&quot;
-[1201] &quot;2023-03-18&quot; &quot;2023-03-18&quot; &quot;2023-03-18&quot; &quot;2023-03-18&quot; &quot;2023-03-18&quot;
-[1206] &quot;2023-03-19&quot; &quot;2023-03-19&quot; &quot;2023-03-20&quot; &quot;2023-03-20&quot; &quot;2023-03-20&quot;
-[1211] &quot;2023-03-20&quot; &quot;2023-03-20&quot; &quot;2023-03-20&quot; &quot;2023-03-20&quot; &quot;2023-03-20&quot;
-[1216] &quot;2023-03-20&quot; &quot;2023-03-20&quot; &quot;2023-03-20&quot; &quot;2023-03-20&quot; &quot;2023-03-20&quot;
-[1221] &quot;2023-03-20&quot; &quot;2023-03-20&quot; &quot;2023-03-21&quot; &quot;2023-03-21&quot; &quot;2023-03-21&quot;
-[1226] &quot;2023-03-21&quot; &quot;2023-03-21&quot; &quot;2023-03-21&quot; &quot;2023-03-21&quot; &quot;2023-03-21&quot;
-[1231] &quot;2023-03-21&quot; &quot;2023-03-21&quot; &quot;2023-03-21&quot; &quot;2023-03-21&quot; &quot;2023-03-21&quot;
-[1236] &quot;2023-03-21&quot; &quot;2023-03-22&quot; &quot;2023-03-22&quot; &quot;2023-03-22&quot; &quot;2023-03-22&quot;
-[1241] &quot;2023-03-22&quot; &quot;2023-03-22&quot; &quot;2023-03-22&quot; &quot;2023-03-22&quot; &quot;2023-03-22&quot;
-[1246] &quot;2023-03-23&quot; &quot;2023-03-23&quot; &quot;2023-03-23&quot; &quot;2023-03-23&quot; &quot;2023-03-23&quot;
-[1251] &quot;2023-03-23&quot; &quot;2023-03-23&quot; &quot;2023-03-23&quot; &quot;2023-03-23&quot; &quot;2023-03-23&quot;
-[1256] &quot;2023-03-23&quot; &quot;2023-03-23&quot; &quot;2023-03-23&quot; &quot;2023-03-23&quot; &quot;2023-03-23&quot;
-[1261] &quot;2023-03-23&quot; &quot;2023-03-23&quot; &quot;2023-03-23&quot; &quot;2023-03-23&quot; &quot;2023-03-24&quot;
-[1266] &quot;2023-03-24&quot; &quot;2023-03-24&quot; &quot;2023-03-24&quot; &quot;2023-03-24&quot; &quot;2023-03-24&quot;
-[1271] &quot;2023-03-24&quot; &quot;2023-03-24&quot; &quot;2023-03-24&quot; &quot;2023-03-24&quot; &quot;2023-03-24&quot;
-[1276] &quot;2023-03-24&quot; &quot;2023-03-24&quot; &quot;2023-03-24&quot; &quot;2023-03-24&quot; &quot;2023-03-24&quot;
-[1281] &quot;2023-03-24&quot; &quot;2023-03-24&quot; &quot;2023-03-25&quot; &quot;2023-03-25&quot; &quot;2023-03-25&quot;
-[1286] &quot;2023-03-25&quot; &quot;2023-03-25&quot; &quot;2023-03-25&quot; &quot;2023-03-25&quot; &quot;2023-03-25&quot;
-[1291] &quot;2023-03-25&quot; &quot;2023-03-27&quot; &quot;2023-03-27&quot; &quot;2023-03-27&quot; &quot;2023-03-27&quot;
-[1296] &quot;2023-03-27&quot; &quot;2023-03-27&quot; &quot;2023-03-27&quot; &quot;2023-03-27&quot; &quot;2023-03-27&quot;
-[1301] &quot;2023-03-27&quot; &quot;2023-03-27&quot; &quot;2023-03-27&quot; &quot;2023-03-27&quot; &quot;2023-03-27&quot;
-[1306] &quot;2023-03-27&quot; &quot;2023-03-27&quot; &quot;2023-03-27&quot; &quot;2023-03-27&quot; &quot;2023-03-27&quot;
-[1311] &quot;2023-03-27&quot; &quot;2023-03-27&quot; &quot;2023-03-27&quot; &quot;2023-03-28&quot; &quot;2023-03-28&quot;
-[1316] &quot;2023-03-28&quot; &quot;2023-03-28&quot; &quot;2023-03-28&quot; &quot;2023-03-28&quot; &quot;2023-03-28&quot;
-[1321] &quot;2023-03-28&quot; &quot;2023-03-28&quot; &quot;2023-03-28&quot; &quot;2023-03-28&quot; &quot;2023-03-28&quot;
-[1326] &quot;2023-03-28&quot; &quot;2023-03-28&quot; &quot;2023-03-28&quot; &quot;2023-03-28&quot; &quot;2023-03-28&quot;
-[1331] &quot;2023-03-28&quot; &quot;2023-03-28&quot; &quot;2023-03-28&quot; &quot;2023-03-28&quot; &quot;2023-03-29&quot;
-[1336] &quot;2023-03-29&quot; &quot;2023-03-29&quot; &quot;2023-03-29&quot; &quot;2023-03-29&quot; &quot;2023-03-29&quot;
-[1341] &quot;2023-03-29&quot; &quot;2023-03-29&quot; &quot;2023-03-29&quot; &quot;2023-03-29&quot; &quot;2023-03-29&quot;
-[1346] &quot;2023-03-29&quot; &quot;2023-03-29&quot; &quot;2023-03-29&quot; &quot;2023-03-30&quot; &quot;2023-03-30&quot;
-[1351] &quot;2023-03-30&quot; &quot;2023-03-30&quot; &quot;2023-03-30&quot; &quot;2023-03-30&quot; &quot;2023-03-30&quot;
-[1356] &quot;2023-03-30&quot; &quot;2023-03-30&quot; &quot;2023-03-30&quot; &quot;2023-03-30&quot; &quot;2023-03-30&quot;
-[1361] &quot;2023-03-30&quot; &quot;2023-03-30&quot; &quot;2023-03-30&quot; &quot;2023-03-30&quot; &quot;2023-03-30&quot;
-[1366] &quot;2023-03-31&quot; &quot;2023-03-31&quot; &quot;2023-03-31&quot; &quot;2023-03-31&quot; &quot;2023-03-31&quot;
-[1371] &quot;2023-03-31&quot; NA           NA           NA           NA          
-[1376] NA           NA           NA           NA           NA          
-[1381] NA           NA           NA           NA           NA          
-[1386] NA           NA           NA           NA           NA          
-[1391] NA           NA           NA           NA           NA          
-[1396] NA           NA           NA           NA           NA          
-[1401] NA           NA           NA           NA           NA          
-[1406] NA           NA           NA           NA           NA          
-[1411] NA           NA           NA           NA           NA          
-[1416] NA           NA           NA           NA           NA          
-[1421] NA           NA           NA           NA           NA          
-[1426] NA           NA           NA           NA           NA          
-[1431] NA           NA           NA           NA           NA          
-[1436] NA           NA           NA           NA           NA          
-[1441] NA           NA           NA           NA           NA          
-[1446] NA           NA           NA           NA           NA          
-[1451] NA           NA           NA           NA           NA          
-[1456] NA           NA           NA           NA           NA          
-[1461] NA           NA           NA           NA           NA          
-[1466] NA           NA           NA           NA           NA          
-[1471] NA           NA           NA           NA           NA          
-[1476] NA           NA           NA           NA           NA          
-[1481] NA           NA           NA           NA           NA          
-[1486] NA           NA           NA           NA           NA          
-[1491] NA           NA           NA           NA           NA          
-[1496] NA           NA           NA           NA           NA          
-[1501] NA           NA           NA           NA           NA          
-[1506] NA           NA           NA           NA           NA          
-[1511] NA           NA           NA           NA           NA          
-[1516] NA           NA           NA           NA           NA          
-[1521] NA           NA           NA           NA           NA          
-[1526] NA           NA           NA           NA           NA          
-[1531] NA           NA           NA           NA           NA          
-[1536] NA           NA           NA           NA           NA          
-[1541] NA           NA           NA           NA           NA          
-[1546] NA           NA           NA           NA           NA          
-[1551] NA           NA           NA           NA           NA          
-[1556] NA           NA           NA           NA           NA          
-[1561] NA           NA           NA           NA           NA          
-[1566] NA           NA           NA           NA           NA          
-[1571] NA           NA           NA           NA           NA          
-[1576] NA           NA           NA           NA           NA          
-[1581] NA           NA           NA           NA           NA          
-[1586] NA           NA           NA           NA           NA          
-[1591] NA           NA           NA           NA           NA          
-[1596] NA           NA           NA           NA           NA          
-[1601] NA           &quot;2023-04-13&quot; &quot;2023-04-13&quot; &quot;2023-04-13&quot; &quot;2023-04-13&quot;
-[1606] &quot;2023-04-13&quot; &quot;2023-04-13&quot; &quot;2023-04-13&quot; &quot;2023-04-13&quot; &quot;2023-04-13&quot;
-[1611] &quot;2023-04-13&quot; &quot;2023-04-13&quot; &quot;2023-04-13&quot; &quot;2023-04-13&quot; &quot;2023-04-13&quot;
-[1616] &quot;2023-04-13&quot; &quot;2023-04-13&quot; &quot;2023-04-13&quot; &quot;2023-04-13&quot; &quot;2023-04-13&quot;
-[1621] &quot;2023-04-13&quot; &quot;2023-04-13&quot; &quot;2023-04-13&quot; &quot;2023-04-13&quot; &quot;2023-04-13&quot;
-[1626] &quot;2023-04-13&quot; &quot;2023-04-14&quot; &quot;2023-04-14&quot; &quot;2023-04-14&quot; &quot;2023-04-14&quot;
-[1631] &quot;2023-04-14&quot; &quot;2023-04-14&quot; &quot;2023-04-14&quot; &quot;2023-04-14&quot; &quot;2023-04-14&quot;
-[1636] &quot;2023-04-14&quot; &quot;2023-04-15&quot; &quot;2023-04-15&quot; &quot;2023-04-15&quot; &quot;2023-04-15&quot;
-[1641] &quot;2023-04-15&quot; &quot;2023-04-15&quot; &quot;2023-04-15&quot; &quot;2023-04-15&quot; &quot;2023-04-15&quot;
-[1646] &quot;2023-04-15&quot; &quot;2023-04-15&quot; &quot;2023-04-16&quot; &quot;2023-04-17&quot; &quot;2023-04-17&quot;
-[1651] &quot;2023-04-17&quot; &quot;2023-04-17&quot; &quot;2023-04-17&quot; &quot;2023-04-17&quot; &quot;2023-04-17&quot;
-[1656] &quot;2023-04-17&quot; &quot;2023-04-17&quot; &quot;2023-04-17&quot; &quot;2023-04-18&quot; &quot;2023-04-18&quot;
-[1661] &quot;2023-04-18&quot; &quot;2023-04-18&quot; &quot;2023-04-18&quot; &quot;2023-04-18&quot; &quot;2023-04-18&quot;
-[1666] &quot;2023-04-18&quot; &quot;2023-04-18&quot; &quot;2023-04-18&quot; &quot;2023-04-18&quot; &quot;2023-04-18&quot;
-[1671] &quot;2023-04-19&quot; &quot;2023-04-19&quot; &quot;2023-04-19&quot; &quot;2023-04-19&quot; &quot;2023-04-19&quot;
-[1676] &quot;2023-04-19&quot; &quot;2023-04-19&quot; &quot;2023-04-19&quot; &quot;2023-04-19&quot; &quot;2023-04-19&quot;
-[1681] &quot;2023-04-19&quot; &quot;2023-04-19&quot; &quot;2023-04-19&quot; &quot;2023-04-19&quot; &quot;2023-04-19&quot;
-[1686] &quot;2023-04-19&quot; &quot;2023-04-19&quot; &quot;2023-04-19&quot; &quot;2023-04-19&quot; &quot;2023-04-19&quot;
-[1691] &quot;2023-04-19&quot; &quot;2023-04-19&quot; &quot;2023-04-19&quot; &quot;2023-04-19&quot; &quot;2023-04-19&quot;
-[1696] &quot;2023-04-19&quot; &quot;2023-04-19&quot; &quot;2023-04-20&quot; &quot;2023-04-20&quot; &quot;2023-04-20&quot;
-[1701] &quot;2023-04-20&quot; &quot;2023-04-20&quot; &quot;2023-04-20&quot; &quot;2023-04-20&quot; &quot;2023-04-20&quot;
-[1706] &quot;2023-04-20&quot; &quot;2023-04-20&quot; &quot;2023-04-20&quot; &quot;2023-04-20&quot; &quot;2023-04-20&quot;
-[1711] &quot;2023-04-20&quot; &quot;2023-04-20&quot; &quot;2023-04-20&quot; &quot;2023-04-20&quot; &quot;2023-04-20&quot;
-[1716] &quot;2023-04-20&quot; &quot;2023-04-20&quot; &quot;2023-04-20&quot; &quot;2023-04-20&quot; &quot;2023-04-20&quot;
-[1721] &quot;2023-04-20&quot; &quot;2023-04-20&quot; &quot;2023-04-20&quot; &quot;2023-04-20&quot; &quot;2023-04-21&quot;
-[1726] &quot;2023-04-21&quot; &quot;2023-04-21&quot; &quot;2023-04-21&quot; &quot;2023-04-21&quot; &quot;2023-04-21&quot;
-[1731] &quot;2023-04-21&quot; &quot;2023-04-21&quot; &quot;2023-04-21&quot; &quot;2023-04-21&quot; &quot;2023-04-21&quot;
-[1736] &quot;2023-04-21&quot; &quot;2023-04-21&quot; &quot;2023-04-21&quot; &quot;2023-04-21&quot; &quot;2023-04-21&quot;
-[1741] &quot;2023-04-21&quot; &quot;2023-04-21&quot; &quot;2023-04-21&quot; &quot;2023-04-22&quot; &quot;2023-04-22&quot;
-[1746] &quot;2023-04-22&quot; &quot;2023-04-22&quot; &quot;2023-04-22&quot; &quot;2023-04-22&quot; &quot;2023-04-22&quot;
-[1751] &quot;2023-04-22&quot; &quot;2023-04-22&quot; &quot;2023-04-22&quot; &quot;2023-04-22&quot; &quot;2023-04-22&quot;
-[1756] &quot;2023-04-22&quot; &quot;2023-04-22&quot; &quot;2023-04-22&quot; &quot;2023-04-22&quot; &quot;2023-04-22&quot;
-[1761] &quot;2023-04-22&quot; &quot;2023-04-22&quot; &quot;2023-04-22&quot; &quot;2023-04-22&quot; &quot;2023-04-22&quot;
-[1766] &quot;2023-04-22&quot; &quot;2024-04-24&quot; &quot;2024-04-24&quot; &quot;2024-04-24&quot; &quot;2024-04-24&quot;
-[1771] &quot;2024-04-24&quot; &quot;2024-04-24&quot; &quot;2024-04-24&quot; &quot;2024-04-24&quot; &quot;2024-04-24&quot;
-[1776] &quot;2024-04-24&quot; &quot;2024-04-24&quot; &quot;2024-04-24&quot; &quot;2024-04-24&quot; &quot;2024-04-24&quot;
-[1781] &quot;2024-04-24&quot; &quot;2024-04-24&quot; &quot;2024-04-24&quot; &quot;2024-04-24&quot; &quot;2024-04-24&quot;
-[1786] &quot;2024-04-24&quot; &quot;2024-04-24&quot; &quot;2024-04-24&quot; &quot;2024-04-24&quot; &quot;2024-04-24&quot;
-[1791] &quot;2024-04-25&quot; &quot;2024-04-25&quot; &quot;2024-04-25&quot; &quot;2024-04-25&quot; &quot;2024-04-25&quot;
-[1796] &quot;2024-04-25&quot; &quot;2024-04-25&quot; &quot;2024-04-25&quot; &quot;2024-04-25&quot; &quot;2024-04-25&quot;
-[1801] &quot;2024-04-25&quot; &quot;2024-04-25&quot; &quot;2024-04-25&quot; &quot;2024-04-26&quot; &quot;2024-04-26&quot;
-[1806] &quot;2024-04-26&quot; &quot;2024-04-26&quot; &quot;2024-04-26&quot; &quot;2024-04-26&quot; &quot;2024-04-26&quot;
-[1811] &quot;2024-04-26&quot; &quot;2024-04-26&quot; &quot;2024-04-26&quot; &quot;2024-04-26&quot; &quot;2024-04-26&quot;
-[1816] &quot;2024-04-26&quot; &quot;2024-04-26&quot; &quot;2024-04-26&quot; &quot;2024-04-26&quot; &quot;2024-04-26&quot;
-[1821] &quot;2024-04-27&quot; &quot;2024-04-27&quot; &quot;2024-04-27&quot; &quot;2024-04-27&quot; &quot;2024-04-27&quot;
-[1826] &quot;2024-04-27&quot; &quot;2024-04-27&quot; &quot;2024-04-27&quot; &quot;2024-04-27&quot; &quot;2024-04-28&quot;
-[1831] &quot;2024-04-28&quot; &quot;2024-04-28&quot; &quot;2024-04-28&quot; &quot;2024-04-28&quot; &quot;2024-04-28&quot;
-[1836] &quot;2024-04-28&quot; &quot;2024-04-28&quot; &quot;2024-04-28&quot; &quot;2024-04-28&quot; &quot;2024-04-28&quot;
-[1841] &quot;2024-04-28&quot; &quot;2024-04-28&quot; NA           NA           NA          
-[1846] NA           NA           NA           NA           NA          
-[1851] NA           NA           NA           NA           NA          
-[1856] NA           NA           NA           NA           NA          
-[1861] NA           NA           NA           NA           NA          
-[1866] NA           NA           NA           NA           NA          
-[1871] NA           NA           NA           NA           NA          
-[1876] NA           NA           NA           NA           NA          
-[1881] NA           NA           NA           NA           NA          
-[1886] NA           NA           NA           NA           NA          
-[1891] NA           NA           NA           NA           NA          
-[1896] NA           NA           NA           NA           NA          
-[1901] NA           NA           NA           NA           NA          
-[1906] NA           NA           NA           NA           NA          
-[1911] NA           NA           NA           NA           NA          
-[1916] NA           NA           NA           NA           NA          
-[1921] NA           NA           NA           NA           NA          
-[1926] NA           NA           NA           NA           NA          
-[1931] NA           NA           NA           NA           NA          
-[1936] NA           NA           NA           NA           NA          
-[1941] NA           NA           NA           NA           NA          
-[1946] NA           NA           NA           NA           NA          
-[1951] NA           NA           NA           NA           NA          
-[1956] NA           NA           NA           NA           NA          
-[1961] NA           NA           NA           NA           NA          
-[1966] NA           NA           NA           NA           NA          
-[1971] NA           NA           NA           NA           NA          
-[1976] NA           NA           NA           NA           NA          
-[1981] NA           NA           NA           NA           NA          
-[1986] NA           NA           NA           NA           NA          
-[1991] NA           NA           NA           NA           NA          
-[1996] NA           NA           NA           NA           NA          
-[2001] NA           NA           NA           NA           NA          
-[2006] NA           NA           NA           NA           NA          
-[2011] NA           NA           NA           NA           NA          
-[2016] NA           NA           NA           NA           NA          
-[2021] NA           NA           NA           &quot;2023-05-13&quot; &quot;2023-05-13&quot;
-[2026] &quot;2023-05-13&quot; &quot;2023-05-13&quot; &quot;2023-05-13&quot; &quot;2023-05-13&quot; &quot;2023-05-13&quot;
-[2031] &quot;2023-05-13&quot; &quot;2023-05-13&quot; &quot;2023-05-13&quot; &quot;2023-05-13&quot; &quot;2023-05-13&quot;
-[2036] &quot;2023-05-13&quot; &quot;2023-05-13&quot; &quot;2023-05-13&quot; &quot;2023-05-13&quot; &quot;2023-05-13&quot;
-[2041] &quot;2023-05-13&quot; &quot;2023-05-13&quot; &quot;2023-05-13&quot; &quot;2023-05-13&quot; &quot;2023-05-13&quot;
-[2046] &quot;2023-05-13&quot; &quot;2023-05-13&quot; &quot;2023-05-13&quot; &quot;2023-05-13&quot; &quot;2023-05-14&quot;
-[2051] &quot;2023-05-14&quot; &quot;2023-05-14&quot; &quot;2023-05-14&quot; &quot;2023-05-14&quot; &quot;2023-05-14&quot;
-[2056] &quot;2023-05-14&quot; &quot;2023-05-14&quot; &quot;2023-05-14&quot; &quot;2023-05-14&quot; &quot;2023-05-14&quot;
-[2061] &quot;2023-05-14&quot; &quot;2023-05-14&quot; &quot;2023-05-14&quot; &quot;2023-05-14&quot; &quot;2023-05-14&quot;
-[2066] &quot;2023-05-14&quot; &quot;2023-05-14&quot; &quot;2023-05-14&quot; &quot;2023-05-14&quot; &quot;2023-05-14&quot;
-[2071] &quot;2023-05-14&quot; &quot;2023-05-14&quot; &quot;2023-05-14&quot; &quot;2023-05-16&quot; &quot;2023-05-16&quot;
-[2076] &quot;2023-05-16&quot; &quot;2023-05-16&quot; &quot;2023-05-16&quot; &quot;2023-05-16&quot; &quot;2023-05-16&quot;
-[2081] &quot;2023-05-16&quot; &quot;2023-05-16&quot; &quot;2023-05-16&quot; &quot;2023-05-16&quot; &quot;2023-05-16&quot;
-[2086] &quot;2023-05-16&quot; &quot;2023-05-16&quot; &quot;2023-05-16&quot; &quot;2023-05-16&quot; &quot;2023-05-16&quot;
-[2091] &quot;2023-05-16&quot; &quot;2023-05-16&quot; &quot;2023-05-16&quot; &quot;2023-05-16&quot; &quot;2023-05-16&quot;
-[2096] &quot;2023-05-16&quot; &quot;2023-05-16&quot; &quot;2023-05-16&quot; &quot;2023-05-16&quot; &quot;2023-05-16&quot;
-[2101] &quot;2023-05-16&quot; &quot;2023-05-16&quot; &quot;2023-05-16&quot; &quot;2023-05-16&quot; &quot;2023-05-17&quot;
-[2106] &quot;2023-05-17&quot; &quot;2023-05-17&quot; &quot;2023-05-17&quot; &quot;2023-05-17&quot; &quot;2023-05-17&quot;
-[2111] &quot;2023-05-17&quot; &quot;2023-05-17&quot; &quot;2023-05-17&quot; &quot;2023-05-17&quot; &quot;2023-05-17&quot;
-[2116] &quot;2023-05-17&quot; &quot;2023-05-17&quot; &quot;2023-05-17&quot; &quot;2023-05-17&quot; &quot;2023-05-17&quot;
-[2121] &quot;2023-05-17&quot; &quot;2023-05-17&quot; &quot;2023-05-17&quot; &quot;2023-05-17&quot; &quot;2023-05-17&quot;
-[2126] &quot;2023-05-17&quot; &quot;2023-05-17&quot; &quot;2023-05-17&quot; &quot;2023-05-17&quot; &quot;2023-05-17&quot;
-[2131] &quot;2023-05-17&quot; &quot;2023-05-18&quot; &quot;2023-05-18&quot; &quot;2023-05-18&quot; &quot;2023-05-18&quot;
-[2136] &quot;2023-05-18&quot; &quot;2023-05-18&quot; &quot;2023-05-18&quot; &quot;2023-05-18&quot; &quot;2023-05-18&quot;
-[2141] &quot;2023-05-18&quot; &quot;2023-05-18&quot; &quot;2023-05-18&quot; &quot;2023-05-18&quot; &quot;2023-05-18&quot;
-[2146] &quot;2023-05-18&quot; &quot;2023-05-18&quot; &quot;2023-05-18&quot; &quot;2023-05-18&quot; &quot;2023-05-18&quot;
-[2151] &quot;2023-05-18&quot; &quot;2023-05-19&quot; &quot;2023-05-19&quot; &quot;2023-05-19&quot; &quot;2023-05-19&quot;
-[2156] &quot;2023-05-19&quot; &quot;2023-05-19&quot; &quot;2023-05-19&quot; &quot;2023-05-19&quot; &quot;2023-05-19&quot;
-[2161] &quot;2023-05-19&quot; &quot;2023-05-19&quot; &quot;2023-05-19&quot; &quot;2023-05-19&quot; &quot;2023-05-19&quot;
-[2166] &quot;2023-05-19&quot; &quot;2023-05-19&quot; &quot;2023-05-19&quot; &quot;2023-05-19&quot; &quot;2023-05-19&quot;
-[2171] &quot;2023-05-19&quot; &quot;2023-05-19&quot; &quot;2023-05-20&quot; &quot;2023-05-20&quot; &quot;2023-05-20&quot;
-[2176] &quot;2023-05-20&quot; &quot;2023-05-20&quot; &quot;2023-05-20&quot; &quot;2023-05-20&quot; &quot;2023-05-20&quot;
-[2181] &quot;2023-05-20&quot; &quot;2023-05-20&quot; &quot;2023-05-20&quot; &quot;2023-05-20&quot; &quot;2023-05-20&quot;
-[2186] &quot;2023-05-20&quot; &quot;2023-05-20&quot; &quot;2023-05-20&quot; &quot;2023-05-20&quot; &quot;2023-05-20&quot;
-[2191] &quot;2023-05-20&quot; &quot;2023-05-20&quot; &quot;2023-05-20&quot; &quot;2023-05-21&quot; &quot;2023-05-22&quot;
-[2196] &quot;2023-05-22&quot; &quot;2023-05-22&quot; &quot;2023-05-22&quot; &quot;2023-05-22&quot; &quot;2023-05-22&quot;
-[2201] &quot;2023-05-22&quot; &quot;2023-05-22&quot; &quot;2023-05-22&quot; &quot;2023-05-22&quot; &quot;2023-05-23&quot;
-[2206] &quot;2023-05-23&quot; &quot;2023-05-23&quot; &quot;2023-05-23&quot; &quot;2023-05-23&quot; &quot;2023-05-23&quot;
-[2211] &quot;2023-05-23&quot; &quot;2023-05-23&quot; &quot;2023-05-23&quot; &quot;2023-05-23&quot; &quot;2023-05-23&quot;
-[2216] &quot;2023-05-23&quot; &quot;2023-05-23&quot; &quot;2023-05-23&quot; &quot;2023-05-23&quot; &quot;2023-05-23&quot;
-[2221] &quot;2023-05-23&quot; &quot;2023-05-23&quot; &quot;2023-05-23&quot; &quot;2023-05-23&quot; &quot;2023-05-23&quot;
-[2226] &quot;2023-05-23&quot; &quot;2023-05-24&quot; &quot;2023-05-24&quot; &quot;2023-05-24&quot; &quot;2023-05-24&quot;
-[2231] &quot;2023-05-24&quot; &quot;2023-05-24&quot; &quot;2023-05-24&quot; &quot;2023-05-24&quot; &quot;2023-05-24&quot;
-[2236] &quot;2023-05-24&quot; &quot;2023-05-24&quot; &quot;2023-05-24&quot; &quot;2023-05-24&quot; &quot;2023-05-24&quot;
-[2241] &quot;2023-05-24&quot; &quot;2023-05-24&quot; &quot;2023-05-24&quot; &quot;2023-05-24&quot; &quot;2023-05-24&quot;
-[2246] &quot;2023-05-24&quot; &quot;2023-05-24&quot; &quot;2023-05-24&quot; &quot;2023-05-24&quot; &quot;2023-05-24&quot;
-[2251] &quot;2023-05-24&quot; &quot;2023-05-24&quot; &quot;2023-05-24&quot; &quot;2023-05-24&quot; &quot;2023-05-24&quot;
-[2256] &quot;2023-05-25&quot; &quot;2023-05-25&quot; &quot;2023-05-25&quot; &quot;2023-05-25&quot; &quot;2023-05-25&quot;
-[2261] &quot;2023-05-25&quot; &quot;2023-05-25&quot; &quot;2023-05-25&quot; &quot;2023-05-25&quot; &quot;2023-05-25&quot;
-[2266] &quot;2023-05-25&quot; &quot;2023-05-25&quot; &quot;2023-05-25&quot; &quot;2023-05-25&quot; &quot;2023-05-25&quot;
-[2271] &quot;2023-05-25&quot; &quot;2023-05-25&quot; &quot;2023-05-25&quot; &quot;2023-05-25&quot; &quot;2023-05-25&quot;
-[2276] &quot;2023-05-25&quot; &quot;2023-05-25&quot; &quot;2023-05-25&quot; &quot;2023-05-26&quot; &quot;2023-05-26&quot;
-[2281] &quot;2023-05-26&quot; &quot;2023-05-26&quot; &quot;2023-05-26&quot; &quot;2023-05-26&quot; &quot;2023-05-26&quot;
-[2286] &quot;2023-05-26&quot; &quot;2023-05-26&quot; &quot;2023-05-26&quot; &quot;2023-05-26&quot; &quot;2023-05-26&quot;
-[2291] &quot;2023-05-26&quot; &quot;2023-05-26&quot; &quot;2023-05-26&quot; &quot;2023-05-26&quot; &quot;2023-05-26&quot;
-[2296] &quot;2023-05-26&quot; &quot;2023-05-27&quot; &quot;2023-05-27&quot; &quot;2023-05-27&quot; &quot;2023-05-27&quot;
-[2301] &quot;2023-05-27&quot; &quot;2023-05-27&quot; &quot;2023-05-27&quot; &quot;2023-05-27&quot; &quot;2023-05-27&quot;
-[2306] &quot;2023-05-27&quot; &quot;2023-05-27&quot; &quot;2023-05-27&quot; &quot;2023-05-27&quot; &quot;2023-05-27&quot;
-[2311] &quot;2023-05-27&quot; &quot;2023-05-27&quot; &quot;2023-05-27&quot; &quot;2023-05-27&quot; &quot;2023-05-28&quot;
-[2316] &quot;2023-05-28&quot; &quot;2023-05-29&quot; &quot;2023-05-29&quot; &quot;2023-05-29&quot; &quot;2023-05-29&quot;
-[2321] &quot;2023-05-29&quot; &quot;2023-05-29&quot; &quot;2023-05-29&quot; &quot;2023-05-30&quot; &quot;2023-05-30&quot;
-[2326] &quot;2023-05-30&quot; &quot;2023-05-30&quot; &quot;2023-05-30&quot; &quot;2023-05-30&quot; &quot;2023-05-30&quot;
-[2331] &quot;2023-05-30&quot; &quot;2023-05-30&quot; &quot;2023-05-30&quot; &quot;2023-05-30&quot; &quot;2023-05-30&quot;
-[2336] &quot;2023-05-30&quot; &quot;2023-05-30&quot; &quot;2023-05-30&quot; &quot;2023-05-31&quot; &quot;2023-05-31&quot;
-[2341] &quot;2023-05-31&quot; &quot;2023-05-31&quot; &quot;2023-05-31&quot; &quot;2023-05-31&quot; &quot;2023-05-31&quot;
-[2346] &quot;2023-05-31&quot; &quot;2023-05-31&quot; &quot;2023-05-31&quot; NA           NA          
-[2351] NA           NA           NA           NA           NA          
-[2356] NA           NA           NA           NA           NA          
-[2361] NA           NA           NA           NA           NA          
-[2366] NA           NA           NA           NA           NA          
-[2371] NA           NA           NA           NA           NA          
-[2376] NA           NA           NA           NA           NA          
-[2381] NA           NA           NA           NA           NA          
-[2386] NA           NA           NA           NA           NA          
-[2391] NA           NA           NA           NA           NA          
-[2396] NA           NA           NA           NA           NA          
-[2401] NA           NA           NA           NA           NA          
-[2406] NA           NA           NA           NA           NA          
-[2411] NA           NA           NA           NA           NA          
-[2416] NA           NA           NA           NA           NA          
-[2421] NA           NA           NA           NA           NA          
-[2426] NA           NA           NA           NA           NA          
-[2431] NA           NA           NA           NA           NA          
-[2436] NA           NA           NA           NA           NA          
-[2441] NA           NA           NA           NA           NA          
-[2446] NA           NA           NA           NA           NA          
-[2451] NA           NA           NA           NA           NA          
-[2456] NA           NA           NA           NA           NA          
-[2461] NA           NA           NA           NA           NA          
-[2466] NA           NA           NA           NA           NA          
-[2471] NA           NA           NA           NA           NA          
-[2476] NA           NA           NA           NA           NA          
-[2481] NA           NA           NA           NA           NA          
-[2486] NA           NA           NA           NA           NA          
-[2491] NA           NA           NA           NA           NA          
-[2496] NA           NA           NA           NA           NA          
-[2501] NA           NA           NA           NA           NA          
-[2506] NA           NA           NA           NA           NA          
-[2511] NA           NA           NA           NA           NA          
-[2516] NA           NA           NA           NA           NA          
-[2521] NA           NA           NA           NA           NA          
-[2526] NA           NA           NA           NA           NA          
-[2531] NA           NA           NA           NA           NA          
-[2536] NA           NA           NA           NA           NA          
-[2541] NA           NA           &quot;2023-06-13&quot; &quot;2023-06-13&quot; &quot;2023-06-13&quot;
-[2546] &quot;2023-06-13&quot; &quot;2023-06-13&quot; &quot;2023-06-13&quot; &quot;2023-06-13&quot; &quot;2023-06-13&quot;
-[2551] &quot;2023-06-13&quot; &quot;2023-06-13&quot; &quot;2023-06-13&quot; &quot;2023-06-13&quot; &quot;2023-06-13&quot;
-[2556] &quot;2023-06-13&quot; &quot;2023-06-13&quot; &quot;2023-06-13&quot; &quot;2023-06-14&quot; &quot;2023-06-14&quot;
-[2561] &quot;2023-06-14&quot; &quot;2023-06-14&quot; &quot;2023-06-14&quot; &quot;2023-06-14&quot; &quot;2023-06-14&quot;
-[2566] &quot;2023-06-14&quot; &quot;2023-06-14&quot; &quot;2023-06-14&quot; &quot;2023-06-14&quot; &quot;2023-06-14&quot;
-[2571] &quot;2023-06-14&quot; &quot;2023-06-14&quot; &quot;2023-06-14&quot; &quot;2023-06-14&quot; &quot;2023-06-14&quot;
-[2576] &quot;2023-06-14&quot; &quot;2023-06-14&quot; &quot;2023-06-14&quot; &quot;2023-06-14&quot; &quot;2023-06-14&quot;
-[2581] &quot;2023-06-14&quot; &quot;2023-06-14&quot; &quot;2023-06-14&quot; &quot;2023-06-14&quot; &quot;2023-06-15&quot;
-[2586] &quot;2023-06-15&quot; &quot;2023-06-15&quot; &quot;2023-06-15&quot; &quot;2023-06-15&quot; &quot;2023-06-15&quot;
-[2591] &quot;2023-06-15&quot; &quot;2023-06-15&quot; &quot;2023-06-15&quot; &quot;2023-06-15&quot; &quot;2023-06-15&quot;
-[2596] &quot;2023-06-16&quot; &quot;2023-06-16&quot; &quot;2023-06-16&quot; &quot;2023-06-16&quot; &quot;2023-06-16&quot;
-[2601] &quot;2023-06-16&quot; &quot;2023-06-16&quot; &quot;2023-06-16&quot; &quot;2023-06-16&quot; &quot;2023-06-16&quot;
-[2606] &quot;2023-06-16&quot; &quot;2023-06-16&quot; &quot;2023-06-16&quot; &quot;2023-06-17&quot; &quot;2023-06-17&quot;
-[2611] &quot;2023-06-17&quot; &quot;2023-06-17&quot; &quot;2023-06-17&quot; &quot;2023-06-17&quot; &quot;2023-06-17&quot;
-[2616] &quot;2023-06-17&quot; &quot;2023-06-17&quot; &quot;2023-06-17&quot; &quot;2023-06-17&quot; &quot;2023-06-17&quot;
-[2621] &quot;2023-06-17&quot; &quot;2023-06-17&quot; &quot;2023-06-17&quot; &quot;2023-06-17&quot; &quot;2023-06-17&quot;
-[2626] &quot;2023-06-17&quot; &quot;2023-06-17&quot; &quot;2023-06-17&quot; &quot;2023-06-17&quot; &quot;2023-06-17&quot;
-[2631] &quot;2023-06-19&quot; &quot;2023-06-19&quot; &quot;2023-06-19&quot; &quot;2023-06-19&quot; &quot;2023-06-19&quot;
-[2636] &quot;2023-06-19&quot; &quot;2023-06-19&quot; &quot;2023-06-19&quot; &quot;2023-06-19&quot; &quot;2023-06-19&quot;
-[2641] &quot;2023-06-19&quot; &quot;2023-06-19&quot; &quot;2023-06-19&quot; &quot;2023-06-19&quot; &quot;2023-06-19&quot;
-[2646] &quot;2023-06-19&quot; &quot;2023-06-19&quot; &quot;2023-06-19&quot; &quot;2023-06-19&quot; &quot;2023-06-19&quot;
-[2651] &quot;2023-06-19&quot; &quot;2023-06-20&quot; &quot;2023-06-20&quot; &quot;2023-06-20&quot; &quot;2023-06-20&quot;
-[2656] &quot;2023-06-20&quot; &quot;2023-06-20&quot; &quot;2023-06-20&quot; &quot;2023-06-20&quot; &quot;2023-06-20&quot;
-[2661] &quot;2023-06-21&quot; &quot;2023-06-21&quot; &quot;2023-06-21&quot; &quot;2023-06-21&quot; &quot;2023-06-21&quot;
-[2666] &quot;2023-06-21&quot; &quot;2023-06-21&quot; &quot;2023-06-21&quot; &quot;2023-06-21&quot; &quot;2023-06-21&quot;
-[2671] &quot;2023-06-21&quot; &quot;2023-06-22&quot; &quot;2023-06-22&quot; &quot;2023-06-22&quot; &quot;2023-06-22&quot;
-[2676] &quot;2023-06-22&quot; &quot;2023-06-22&quot; &quot;2023-06-22&quot; &quot;2023-06-22&quot; &quot;2023-06-22&quot;
-[2681] &quot;2023-06-22&quot; &quot;2023-06-22&quot; &quot;2023-06-22&quot; &quot;2023-06-22&quot; &quot;2023-06-22&quot;
-[2686] &quot;2023-06-22&quot; &quot;2023-06-22&quot; &quot;2023-06-22&quot; &quot;2023-06-22&quot; &quot;2023-06-22&quot;
-[2691] &quot;2023-06-22&quot; &quot;2023-06-22&quot; &quot;2023-06-22&quot; &quot;2023-06-22&quot; &quot;2023-06-23&quot;
-[2696] &quot;2023-06-23&quot; &quot;2023-06-23&quot; &quot;2023-06-23&quot; &quot;2023-06-23&quot; &quot;2023-06-23&quot;
-[2701] &quot;2023-06-23&quot; &quot;2023-06-23&quot; &quot;2023-06-23&quot; &quot;2023-06-23&quot; &quot;2023-06-23&quot;
-[2706] &quot;2023-06-23&quot; &quot;2023-06-23&quot; &quot;2023-06-23&quot; &quot;2023-06-23&quot; &quot;2023-06-23&quot;
-[2711] &quot;2023-06-23&quot; &quot;2023-06-23&quot; &quot;2023-06-23&quot; &quot;2023-06-23&quot; &quot;2023-06-23&quot;
-[2716] &quot;2023-06-23&quot; &quot;2023-06-23&quot; &quot;2023-06-24&quot; &quot;2023-06-24&quot; &quot;2023-06-24&quot;
-[2721] &quot;2023-06-24&quot; &quot;2023-06-24&quot; &quot;2023-06-24&quot; &quot;2023-06-24&quot; &quot;2023-06-24&quot;
-[2726] &quot;2023-06-24&quot; &quot;2023-06-24&quot; &quot;2023-06-24&quot; &quot;2023-06-24&quot; &quot;2023-06-24&quot;
-[2731] &quot;2023-06-24&quot; &quot;2023-06-24&quot; &quot;2023-06-24&quot; &quot;2023-06-24&quot; &quot;2023-06-24&quot;
-[2736] &quot;2023-06-27&quot; &quot;2023-06-27&quot; &quot;2023-06-27&quot; &quot;2023-06-27&quot; &quot;2023-06-28&quot;
-[2741] &quot;2023-06-28&quot; &quot;2023-06-28&quot; &quot;2023-06-28&quot; &quot;2023-06-28&quot; &quot;2023-06-28&quot;
-[2746] &quot;2023-06-24&quot; &quot;2023-06-24&quot; &quot;2023-06-24&quot; &quot;2023-06-24&quot; &quot;2023-06-24&quot;
-[2751] &quot;2023-06-24&quot; &quot;2023-06-24&quot; &quot;2023-06-24&quot; &quot;2023-06-24&quot; &quot;2023-06-24&quot;
-[2756] &quot;2023-06-24&quot; &quot;2023-06-24&quot; &quot;2023-06-24&quot; &quot;2023-06-24&quot; &quot;2023-06-24&quot;
-[2761] &quot;2023-06-24&quot; &quot;2023-06-24&quot; &quot;2023-06-24&quot; &quot;2023-06-24&quot; &quot;2023-06-24&quot;
-[2766] &quot;2023-06-24&quot; &quot;2023-06-24&quot; &quot;2023-06-29&quot; &quot;2023-06-29&quot; &quot;2023-06-29&quot;
-[2771] &quot;2023-06-29&quot; &quot;2023-06-29&quot; &quot;2023-06-29&quot; &quot;2023-06-29&quot; &quot;2023-06-29&quot;
-[2776] &quot;2023-06-29&quot; &quot;2023-06-29&quot; &quot;2023-06-29&quot; &quot;2023-06-29&quot; &quot;2023-06-30&quot;
-[2781] &quot;2023-06-30&quot; &quot;2023-06-30&quot; &quot;2023-06-30&quot; &quot;2023-06-30&quot; &quot;2023-06-30&quot;
-[2786] &quot;2023-06-30&quot; &quot;2023-06-30&quot; &quot;2023-06-30&quot; &quot;2023-06-30&quot; &quot;2023-06-30&quot;
-[2791] &quot;2023-06-30&quot; &quot;2023-06-30&quot; &quot;2023-06-30&quot; &quot;2023-06-30&quot; &quot;2023-06-30&quot;
-[2796] NA           NA           NA           NA           NA          
-[2801] NA           NA           NA           NA           NA          
-[2806] NA           NA           NA           NA           NA          
-[2811] NA           NA           NA           NA           NA          
-[2816] NA           NA           NA           NA           NA          
-[2821] NA           NA           NA           NA           NA          
-[2826] NA           NA           NA           NA           NA          
-[2831] NA           NA           NA           NA           NA          
-[2836] NA           NA           NA           NA           NA          
-[2841] NA           NA           NA           NA           NA          
-[2846] NA           NA           NA           NA           NA          
-[2851] NA           NA           NA           NA           NA          
-[2856] NA           NA           NA           NA           NA          
-[2861] NA           NA           NA           NA           NA          
-[2866] NA           NA           NA           NA           NA          
-[2871] NA           NA           NA           NA           NA          
-[2876] NA           NA           NA           NA           NA          
-[2881] NA           NA           NA           NA           NA          
-[2886] NA           NA           NA           NA           NA          
-[2891] NA           NA           NA           NA           NA          
-[2896] NA           NA           NA           NA           NA          
-[2901] NA           NA           NA           NA           NA          
-[2906] NA           NA           NA           NA           NA          
-[2911] NA           NA           NA           NA           NA          
-[2916] NA           NA           NA           NA           NA          
-[2921] NA           NA           NA           NA           NA          
-[2926] NA           NA           NA           NA           NA          
-[2931] NA           NA           NA           NA           NA          
-[2936] NA           NA           NA           NA           NA          
-[2941] NA           NA           NA           NA           NA          
-[2946] NA           NA           NA           NA           NA          
-[2951] NA           NA           NA           NA           NA          
-[2956] NA           NA           NA           NA           NA          
-[2961] NA           NA           NA           NA           NA          
-[2966] NA           NA           NA           NA           NA          
-[2971] NA           NA           NA           NA           NA          
-[2976] NA           NA           NA           NA           NA          
-[2981] NA           NA           NA           NA           NA          
-[2986] NA           NA           NA           NA           NA          
-[2991] NA           NA           NA           NA           NA          
-[2996] NA           &quot;2023-07-13&quot; &quot;2023-07-13&quot; &quot;2023-07-13&quot; &quot;2023-07-13&quot;
-[3001] &quot;2023-07-13&quot; &quot;2023-07-13&quot; &quot;2023-07-13&quot; &quot;2023-07-13&quot; &quot;2023-07-13&quot;
-[3006] &quot;2023-07-13&quot; &quot;2023-07-13&quot; &quot;2023-07-13&quot; &quot;2023-07-13&quot; &quot;2023-07-13&quot;
-[3011] &quot;2023-07-13&quot; &quot;2023-07-13&quot; &quot;2023-07-13&quot; &quot;2023-07-13&quot; &quot;2023-07-13&quot;
-[3016] &quot;2023-07-13&quot; &quot;2023-07-13&quot; &quot;2023-07-13&quot; &quot;2023-07-13&quot; &quot;2023-07-13&quot;
-[3021] &quot;2023-07-13&quot; &quot;2023-07-13&quot; &quot;2023-07-13&quot; &quot;2023-07-14&quot; &quot;2023-07-14&quot;
-[3026] &quot;2023-07-14&quot; &quot;2023-07-14&quot; &quot;2023-07-14&quot; &quot;2023-07-14&quot; &quot;2023-07-14&quot;
-[3031] &quot;2023-07-14&quot; &quot;2023-07-14&quot; &quot;2023-07-14&quot; &quot;2023-07-14&quot; &quot;2023-07-14&quot;
-[3036] &quot;2023-07-15&quot; &quot;2023-07-15&quot; &quot;2023-07-15&quot; &quot;2023-07-15&quot; &quot;2023-07-15&quot;
-[3041] &quot;2023-07-15&quot; &quot;2023-07-15&quot; &quot;2023-07-15&quot; &quot;2023-07-15&quot; &quot;2023-07-15&quot;
-[3046] &quot;2023-07-15&quot; &quot;2023-07-15&quot; &quot;2023-07-15&quot; &quot;2023-07-15&quot; &quot;2023-07-17&quot;
-[3051] &quot;2023-07-17&quot; &quot;2023-07-17&quot; &quot;2023-07-17&quot; &quot;2023-07-17&quot; &quot;2023-07-18&quot;
-[3056] &quot;2023-07-18&quot; &quot;2023-07-18&quot; &quot;2023-07-18&quot; &quot;2023-07-18&quot; &quot;2023-07-18&quot;
-[3061] &quot;2023-07-18&quot; &quot;2023-07-18&quot; &quot;2023-07-18&quot; &quot;2023-07-18&quot; &quot;2023-07-18&quot;
-[3066] &quot;2023-07-18&quot; &quot;2023-07-18&quot; &quot;2023-07-18&quot; &quot;2023-07-19&quot; &quot;2023-07-19&quot;
-[3071] &quot;2023-07-19&quot; &quot;2023-07-19&quot; &quot;2023-07-19&quot; &quot;2023-07-19&quot; &quot;2023-07-19&quot;
-[3076] &quot;2023-07-19&quot; &quot;2023-07-19&quot; &quot;2023-07-19&quot; &quot;2023-07-19&quot; &quot;2023-07-19&quot;
-[3081] &quot;2023-07-19&quot; &quot;2023-07-19&quot; &quot;2023-07-19&quot; &quot;2023-07-19&quot; &quot;2023-07-19&quot;
-[3086] &quot;2023-07-19&quot; &quot;2023-07-19&quot; &quot;2023-07-19&quot; &quot;2023-07-19&quot; &quot;2023-07-19&quot;
-[3091] &quot;2023-07-19&quot; &quot;2023-07-20&quot; &quot;2023-07-20&quot; &quot;2023-07-20&quot; &quot;2023-07-20&quot;
-[3096] &quot;2023-07-20&quot; &quot;2023-07-20&quot; &quot;2023-07-20&quot; &quot;2023-07-20&quot; &quot;2023-07-20&quot;
-[3101] &quot;2023-07-20&quot; &quot;2023-07-21&quot; &quot;2023-07-21&quot; &quot;2023-07-21&quot; &quot;2023-07-21&quot;
-[3106] &quot;2023-07-21&quot; &quot;2023-07-21&quot; &quot;2023-07-21&quot; &quot;2023-07-21&quot; &quot;2023-07-21&quot;
-[3111] &quot;2023-07-21&quot; &quot;2023-07-21&quot; &quot;2023-07-21&quot; &quot;2023-07-21&quot; &quot;2023-07-21&quot;
-[3116] &quot;2023-07-22&quot; &quot;2023-07-22&quot; &quot;2023-07-22&quot; &quot;2023-07-22&quot; &quot;2023-07-22&quot;
-[3121] &quot;2023-07-22&quot; &quot;2023-07-22&quot; &quot;2023-07-22&quot; &quot;2023-07-22&quot; &quot;2023-07-22&quot;
-[3126] &quot;2023-07-22&quot; &quot;2023-07-22&quot; &quot;2023-07-22&quot; &quot;2023-07-22&quot; &quot;2023-07-24&quot;
-[3131] &quot;2023-07-24&quot; &quot;2023-07-24&quot; &quot;2023-07-24&quot; &quot;2023-07-24&quot; &quot;2023-07-24&quot;
-[3136] &quot;2023-07-24&quot; &quot;2023-07-24&quot; &quot;2023-07-24&quot; &quot;2023-07-24&quot; &quot;2023-07-24&quot;
-[3141] &quot;2023-07-24&quot; &quot;2023-07-24&quot; &quot;2023-07-24&quot; &quot;2023-07-24&quot; &quot;2023-07-24&quot;
-[3146] &quot;2023-07-25&quot; &quot;2023-07-25&quot; &quot;2023-07-25&quot; &quot;2023-07-25&quot; &quot;2023-07-25&quot;
-[3151] &quot;2023-07-25&quot; &quot;2023-07-25&quot; &quot;2023-07-25&quot; &quot;2023-07-25&quot; &quot;2023-07-25&quot;
-[3156] &quot;2023-07-25&quot; &quot;2023-07-25&quot; &quot;2023-07-25&quot; &quot;2023-07-25&quot; &quot;2023-07-25&quot;
-[3161] &quot;2023-07-25&quot; &quot;2023-07-25&quot; &quot;2023-07-25&quot; &quot;2023-07-25&quot; &quot;2023-07-25&quot;
-[3166] &quot;2023-07-25&quot; &quot;2023-07-25&quot; &quot;2023-07-25&quot; &quot;2023-07-26&quot; &quot;2023-07-26&quot;
-[3171] &quot;2023-07-26&quot; &quot;2023-07-26&quot; &quot;2023-07-26&quot; &quot;2023-07-26&quot; &quot;2023-07-26&quot;
-[3176] &quot;2023-07-26&quot; &quot;2023-07-26&quot; &quot;2023-07-26&quot; &quot;2023-07-26&quot; &quot;2023-07-26&quot;
-[3181] &quot;2023-07-26&quot; &quot;2023-07-26&quot; &quot;2023-07-26&quot; &quot;2023-07-26&quot; &quot;2023-07-26&quot;
-[3186] &quot;2023-07-27&quot; &quot;2023-07-27&quot; &quot;2023-07-27&quot; &quot;2023-07-27&quot; &quot;2023-07-27&quot;
-[3191] &quot;2023-07-27&quot; &quot;2023-07-27&quot; &quot;2023-07-27&quot; &quot;2023-07-27&quot; &quot;2023-07-27&quot;
-[3196] &quot;2023-07-27&quot; &quot;2023-07-27&quot; &quot;2023-07-27&quot; &quot;2023-07-27&quot; &quot;2023-07-27&quot;
-[3201] &quot;2023-07-27&quot; &quot;2023-07-27&quot; &quot;2023-07-27&quot; &quot;2023-07-28&quot; &quot;2023-07-28&quot;
-[3206] &quot;2023-07-28&quot; &quot;2023-07-28&quot; &quot;2023-07-28&quot; &quot;2023-07-28&quot; &quot;2023-07-28&quot;
-[3211] &quot;2023-07-28&quot; &quot;2023-07-28&quot; &quot;2023-07-28&quot; &quot;2023-07-28&quot; &quot;2023-07-28&quot;
-[3216] &quot;2023-07-28&quot; &quot;2023-07-28&quot; &quot;2023-07-31&quot; &quot;2023-07-31&quot; &quot;2023-07-31&quot;
-[3221] &quot;2023-07-31&quot; &quot;2023-07-31&quot; &quot;2023-07-31&quot; &quot;2023-07-31&quot; &quot;2023-07-31&quot;
-[3226] &quot;2023-07-31&quot; &quot;2023-07-31&quot; &quot;2023-07-31&quot; &quot;2023-07-31&quot; &quot;2023-07-31&quot;
-[3231] &quot;2023-07-31&quot; &quot;2023-07-31&quot; &quot;2023-07-31&quot; NA           NA          
-[3236] NA           NA           NA           NA           NA          
-[3241] NA           NA           NA           NA           NA          
-[3246] NA           NA           NA           NA           NA          
-[3251] NA           NA           NA           NA           NA          
-[3256] NA           NA           NA           NA           NA          
-[3261] NA           NA           NA           NA           NA          
-[3266] NA           NA           NA           NA           NA          
-[3271] NA           NA           NA           NA           NA          
-[3276] NA           NA           NA           NA           NA          
-[3281] NA           NA           NA           NA           NA          
-[3286] NA           NA           NA           NA           NA          
-[3291] NA           NA           NA           NA           NA          
-[3296] NA           NA           NA           NA           NA          
-[3301] NA           NA           NA           NA           NA          
-[3306] NA           NA           NA           NA           NA          
-[3311] NA           NA           NA           NA           NA          
-[3316] NA           NA           NA           NA           NA          
-[3321] NA           NA           NA           NA           NA          
-[3326] NA           NA           NA           NA           NA          
-[3331] NA           NA           NA           NA           NA          
-[3336] NA           NA           NA           NA           NA          
-[3341] NA           NA           NA           NA           NA          
-[3346] NA           NA           NA           NA           NA          
-[3351] NA           NA           NA           NA           NA          
-[3356] NA           NA           NA           NA           NA          
-[3361] NA           NA           NA           NA           NA          
-[3366] NA           NA           NA           NA           NA          
-[3371] NA           NA           NA           NA           NA          
-[3376] NA           NA           NA           NA           NA          
-[3381] NA           NA           NA           NA           NA          
-[3386] NA           NA           NA           NA           NA          
-[3391] NA           NA           NA           NA           NA          
-[3396] NA           NA           NA           NA           NA          
-[3401] NA           NA           NA           NA           NA          
-[3406] NA           NA           NA           NA           NA          
-[3411] NA           NA           NA           NA           NA          
-[3416] NA           NA           NA           NA           NA          
-[3421] NA           NA           NA           NA           NA          
-[3426] NA           NA           NA           NA           NA          
-[3431] NA           NA           NA           NA           NA          
-[3436] NA           NA           NA           NA           NA          
-[3441] NA           NA           NA           NA           NA          
-[3446] NA           NA           NA           NA           NA          
-[3451] NA           NA           NA           NA           NA          
-[3456] NA           &quot;2023-08-14&quot; &quot;2023-08-14&quot; &quot;2023-08-14&quot; &quot;2023-08-14&quot;
-[3461] &quot;2023-08-14&quot; &quot;2023-08-14&quot; &quot;2023-08-14&quot; &quot;2023-08-14&quot; &quot;2023-08-14&quot;
-[3466] &quot;2023-08-14&quot; &quot;2023-08-14&quot; &quot;2023-08-14&quot; &quot;2023-08-14&quot; &quot;2023-08-14&quot;
-[3471] &quot;2023-08-14&quot; &quot;2023-08-14&quot; &quot;2023-08-14&quot; &quot;2023-08-14&quot; &quot;2023-08-14&quot;
-[3476] &quot;2023-08-14&quot; &quot;2023-08-14&quot; &quot;2023-08-14&quot; &quot;2023-08-15&quot; &quot;2023-08-15&quot;
-[3481] &quot;2023-08-15&quot; &quot;2023-08-15&quot; &quot;2023-08-15&quot; &quot;2023-08-15&quot; &quot;2023-08-15&quot;
-[3486] &quot;2023-08-15&quot; &quot;2023-08-15&quot; &quot;2023-08-15&quot; &quot;2023-08-15&quot; &quot;2023-08-15&quot;
-[3491] &quot;2023-08-15&quot; &quot;2023-08-15&quot; &quot;2023-08-15&quot; &quot;2023-08-15&quot; &quot;2023-08-15&quot;
-[3496] &quot;2023-08-15&quot; &quot;2023-08-15&quot; &quot;2023-08-15&quot; &quot;2023-08-15&quot; &quot;2023-08-15&quot;
-[3501] &quot;2023-08-15&quot; &quot;2023-08-16&quot; &quot;2023-08-16&quot; &quot;2023-08-16&quot; &quot;2023-08-16&quot;
-[3506] &quot;2023-08-16&quot; &quot;2023-08-16&quot; &quot;2023-08-16&quot; &quot;2023-08-16&quot; &quot;2023-08-16&quot;
-[3511] &quot;2023-08-16&quot; &quot;2023-08-16&quot; &quot;2023-08-16&quot; &quot;2023-08-16&quot; &quot;2023-08-16&quot;
-[3516] &quot;2023-08-16&quot; &quot;2023-08-16&quot; &quot;2023-08-16&quot; &quot;2023-08-16&quot; &quot;2023-08-16&quot;
-[3521] &quot;2023-08-16&quot; &quot;2023-08-16&quot; &quot;2023-08-16&quot; &quot;2023-08-17&quot; &quot;2023-08-17&quot;
-[3526] &quot;2023-08-17&quot; &quot;2023-08-17&quot; &quot;2023-08-17&quot; &quot;2023-08-17&quot; &quot;2023-08-17&quot;
-[3531] &quot;2023-08-17&quot; &quot;2023-08-17&quot; &quot;2023-08-17&quot; &quot;2023-08-17&quot; &quot;2023-08-17&quot;
-[3536] &quot;2023-08-17&quot; &quot;2023-08-17&quot; &quot;2023-08-17&quot; &quot;2023-08-17&quot; &quot;2023-08-17&quot;
-[3541] &quot;2023-08-17&quot; &quot;2023-08-18&quot; &quot;2023-08-18&quot; &quot;2023-08-18&quot; &quot;2023-08-18&quot;
-[3546] &quot;2023-08-18&quot; &quot;2023-08-18&quot; &quot;2023-08-18&quot; &quot;2023-08-18&quot; &quot;2023-08-18&quot;
-[3551] &quot;2023-08-18&quot; &quot;2023-08-18&quot; &quot;2023-08-18&quot; &quot;2023-08-18&quot; &quot;2023-08-18&quot;
-[3556] &quot;2023-08-18&quot; &quot;2023-08-18&quot; &quot;2023-08-18&quot; &quot;2023-08-18&quot; &quot;2023-08-19&quot;
-[3561] &quot;2023-08-19&quot; &quot;2023-08-19&quot; &quot;2023-08-19&quot; &quot;2023-08-19&quot; &quot;2023-08-19&quot;
-[3566] &quot;2023-08-19&quot; &quot;2023-08-19&quot; &quot;2023-08-19&quot; &quot;2023-08-19&quot; &quot;2023-08-19&quot;
-[3571] &quot;2023-08-19&quot; &quot;2023-08-19&quot; &quot;2023-08-19&quot; &quot;2023-08-19&quot; &quot;2023-08-19&quot;
-[3576] &quot;2023-08-21&quot; &quot;2023-08-21&quot; &quot;2023-08-21&quot; &quot;2023-08-21&quot; &quot;2023-08-21&quot;
-[3581] &quot;2023-08-21&quot; &quot;2023-08-21&quot; &quot;2023-08-21&quot; &quot;2023-08-21&quot; &quot;2023-08-21&quot;
-[3586] &quot;2023-08-21&quot; &quot;2023-08-21&quot; &quot;2023-08-21&quot; &quot;2023-08-21&quot; &quot;2023-08-21&quot;
-[3591] &quot;2023-08-21&quot; &quot;2023-08-21&quot; &quot;2023-08-21&quot; &quot;2023-08-21&quot; &quot;2023-08-21&quot;
-[3596] &quot;2023-08-21&quot; &quot;2023-08-21&quot; &quot;2023-08-21&quot; &quot;2023-08-21&quot; &quot;2023-08-23&quot;
-[3601] &quot;2023-08-23&quot; &quot;2023-08-23&quot; &quot;2023-08-23&quot; &quot;2023-08-22&quot; &quot;2023-08-22&quot;
-[3606] &quot;2023-08-22&quot; &quot;2023-08-22&quot; &quot;2023-08-22&quot; &quot;2023-08-22&quot; &quot;2023-08-22&quot;
-[3611] &quot;2023-08-22&quot; &quot;2023-08-22&quot; &quot;2023-08-22&quot; &quot;2023-08-22&quot; &quot;2023-08-22&quot;
-[3616] &quot;2023-08-22&quot; &quot;2023-08-23&quot; &quot;2023-08-23&quot; &quot;2023-08-23&quot; &quot;2023-08-23&quot;
-[3621] &quot;2023-08-23&quot; &quot;2023-08-23&quot; &quot;2023-08-23&quot; &quot;2023-08-23&quot; &quot;2023-08-23&quot;
-[3626] &quot;2023-08-23&quot; &quot;2023-08-23&quot; &quot;2023-08-24&quot; &quot;2023-08-24&quot; &quot;2023-08-24&quot;
-[3631] &quot;2023-08-24&quot; &quot;2023-08-24&quot; &quot;2023-08-24&quot; &quot;2023-08-24&quot; &quot;2023-08-24&quot;
-[3636] &quot;2023-08-24&quot; &quot;2023-08-24&quot; &quot;2023-08-24&quot; &quot;2023-08-24&quot; &quot;2023-08-24&quot;
-[3641] &quot;2023-08-24&quot; &quot;2023-08-24&quot; &quot;2023-08-24&quot; &quot;2023-08-25&quot; &quot;2023-08-25&quot;
-[3646] &quot;2023-08-25&quot; &quot;2023-08-25&quot; &quot;2023-08-25&quot; &quot;2023-08-25&quot; &quot;2023-08-25&quot;
-[3651] &quot;2023-08-25&quot; &quot;2023-08-25&quot; &quot;2023-08-25&quot; &quot;2023-08-25&quot; &quot;2023-08-26&quot;
-[3656] &quot;2023-08-26&quot; &quot;2023-08-26&quot; &quot;2023-08-26&quot; &quot;2023-08-26&quot; &quot;2023-08-26&quot;
-[3661] &quot;2023-08-26&quot; &quot;2023-08-26&quot; &quot;2023-08-26&quot; &quot;2023-08-26&quot; &quot;2023-08-26&quot;
-[3666] &quot;2023-08-26&quot; &quot;2023-08-26&quot; &quot;2023-08-26&quot; &quot;2023-08-26&quot; &quot;2023-08-26&quot;
-[3671] &quot;2023-08-28&quot; &quot;2023-08-28&quot; &quot;2023-08-28&quot; &quot;2023-08-28&quot; &quot;2023-08-28&quot;
-[3676] &quot;2023-08-28&quot; &quot;2023-08-28&quot; &quot;2023-08-28&quot; &quot;2023-08-28&quot; &quot;2023-08-28&quot;
-[3681] &quot;2023-08-28&quot; &quot;2023-08-28&quot; &quot;2023-08-28&quot; &quot;2023-08-28&quot; &quot;2023-08-28&quot;
-[3686] &quot;2023-08-28&quot; &quot;2023-08-28&quot; &quot;2023-08-28&quot; &quot;2023-08-28&quot; &quot;2023-08-28&quot;
-[3691] &quot;2023-08-29&quot; &quot;2023-08-29&quot; &quot;2023-08-29&quot; &quot;2023-08-29&quot; &quot;2023-08-29&quot;
-[3696] &quot;2023-08-29&quot; &quot;2023-08-29&quot; &quot;2023-08-29&quot; &quot;2023-08-29&quot; &quot;2023-08-29&quot;
-[3701] &quot;2023-08-29&quot; &quot;2023-08-29&quot; &quot;2023-08-29&quot; &quot;2023-08-29&quot; &quot;2023-08-29&quot;
-[3706] &quot;2023-08-29&quot; &quot;2023-08-29&quot; &quot;2023-08-29&quot; &quot;2023-08-29&quot; &quot;2023-08-29&quot;
-[3711] &quot;2023-08-29&quot; &quot;2023-08-29&quot; &quot;2023-08-29&quot; &quot;2023-08-30&quot; &quot;2023-08-30&quot;
-[3716] &quot;2023-08-30&quot; &quot;2023-08-30&quot; &quot;2023-08-30&quot; &quot;2023-08-30&quot; &quot;2023-08-30&quot;
-[3721] &quot;2023-08-30&quot; &quot;2023-08-30&quot; &quot;2023-08-30&quot; &quot;2023-08-30&quot; &quot;2023-08-30&quot;
-[3726] &quot;2023-08-30&quot; &quot;2023-08-30&quot; &quot;2023-08-30&quot; &quot;2023-08-30&quot; &quot;2023-08-30&quot;
-[3731] &quot;2023-08-30&quot; &quot;2023-08-30&quot; &quot;2023-08-30&quot; &quot;2023-08-30&quot; &quot;2023-08-30&quot;
-[3736] &quot;2023-08-30&quot; &quot;2023-08-30&quot; &quot;2023-08-30&quot; &quot;2023-08-30&quot; &quot;2023-08-30&quot;
-[3741] &quot;2023-08-30&quot; &quot;2023-08-31&quot; &quot;2023-08-31&quot; &quot;2023-08-31&quot; &quot;2023-08-31&quot;
-[3746] &quot;2023-08-31&quot; &quot;2023-08-31&quot; &quot;2023-08-31&quot; &quot;2023-08-31&quot; &quot;2023-08-31&quot;
-[3751] &quot;2023-08-31&quot; &quot;2023-08-31&quot; &quot;2023-08-31&quot; &quot;2023-08-31&quot; NA          
-[3756] NA           NA           NA           NA           NA          
-[3761] NA           NA           NA           NA           NA          
-[3766] NA           NA           NA           NA           NA          
-[3771] NA           NA           NA           NA           NA          
-[3776] NA           NA           NA           NA           NA          
-[3781] NA           NA           NA           NA           NA          
-[3786] NA           NA           NA           NA           NA          
-[3791] NA           NA           NA           NA           NA          
-[3796] NA           NA           NA           NA           NA          
-[3801] NA           NA           NA           NA           NA          
-[3806] NA           NA           NA           NA           NA          
-[3811] NA           NA           NA           NA           NA          
-[3816] NA           NA           NA           NA           NA          
-[3821] NA           NA           NA           NA           NA          </code></pre>
+<pre><code>   Code.dầu Nước.rework      Batch   AD
+1: 68282794          NA 230111M501 11.6
+2: 68282794          NA 230111M502 11.8
+3: 68282794          NA 230111M503 11.8
+4: 68195812          NA 230111M504 11.7
+5: 68282794          NA 230111M505 11.6
+6: 68282794          NA 230111M506 11.6</code></pre>
 </div>
 </div>
-<p>Checking result of parsing process</p>
+<p>Finally, we re-name the columns</p>
+<section id="summary" class="level4">
+<h4 class="anchored" data-anchor-id="summary">Summary</h4>
+<p>In conclusion, for criteria AD, we have already done these following processing step:</p>
+<ol type="1">
+<li>Fill NA Value in column target (AD).</li>
+<li>Remove columns <code>KL.theo.mixer</code> and <code>KL.thực.tế</code></li>
+<li>Convert <code>Nước.rework</code> to numeric value</li>
+<li>Re-format column <code>Batch</code> to uppercase</li>
+<li>Drop other time indicators, only keep <code>Batch</code></li>
+<li>Rename the dataset</li>
+</ol>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] &quot;Saving done.&quot;</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="vis" class="level3" data-number="5.1.2">
+<h3 data-number="5.1.2" class="anchored" data-anchor-id="vis"><span class="header-section-number">5.1.2</span> Vis</h3>
+<p>We follow the same approach above for <code>Vis</code></p>
+<p>Initiate dataset for <code>Vis</code></p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>    Vis      Batch Code.dầu Nước.rework
+1: 1520 230111M501 68282794          NA
+2: 1542 230111M502 68282794          NA
+3: 1420 230111M503 68282794          NA
+4: 1380 230111M504 68195812          NA
+5: 1450 230111M505 68282794          NA
+6: 1489 230111M506 68282794          NA</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 4930</code></pre>
+</div>
+</div>
+<p>Converting column Vis to numeric and see if there are invalid value</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>    Vis      Batch Code.dầu Nước.rework
+ 1:  NA 230121M509 68195812          NA
+ 2:  NA 230143M510     &lt;NA&gt;          NA
+ 3:  NA 230171M505 68195812          NA
+ 4:  NA 230621M506 67909220        1500
+ 5:  NA 230621M507 67909220        1500
+ 6:  NA 230651M508 68733472          NA
+ 7:  NA 230652M501 68359260          NA
+ 8:  NA 230652M502 21001981          NA
+ 9:  NA 230652M503 68632365          NA
+10:  NA 230652M504 68195812          NA
+11:  NA 230652M505 68733474          NA
+12:  NA 230652M506 68195812          NA
+13:  NA 230652M507 68195812          NA
+14:  NA 230652M508 68733474          NA
+15:  NA 230812M508 67909220         500
+16:  NA 230962M507 68359259          NA
+17:  NA 231021m507 68282794          NA
+18:  NA 231021m508 68282795        1500
+19:  NA 231021m509 68835436          NA
+20:  NA 231021m510 67909220        1500
+21:  NA 231021m511 68282794          NA
+22:  NA 231651M501 69668301          NA
+23:  NA 231651M502 69668301          NA
+24:  NA 231651M503 67746969          NA
+25:  NA 231651M504 68282795          NA
+26:  NA 231651M505 69668301          NA
+27:  NA 231651M506 69668301          NA
+28:  NA 231651M507 69668301          NA
+29:  NA 231723M501 68636786          NA
+30:  NA 231723M502 69668301          NA
+31:  NA 231723M503 69668301          NA
+32:  NA 231723M504 67909220          NA
+33:  NA 231723M505 69668301          NA
+34:  NA 231723M506 69668301          NA
+35:  NA 231723M507 69668301          NA
+36:  NA 231922M503 68632365          NA
+37:  NA 231922M504 68632365          NA
+38:  NA 232042M510 69641445          NA
+39:  NA 232133M511 69668301        1000
+40:  NA 232142M510 69564958          NA
+41:  NA 232221M501 69636786          NA
+42:  NA 232221M502 68282794          NA
+43:  NA 232221M503 68282794          NA
+44:  NA 232221M504 21001981          NA
+45:  NA 232221M505 21001981          NA
+46:  NA 232221M506 21001981          NA
+47:  NA 232221M507 68282795          NA
+48:  NA 232221M508 68282795          NA
+49:  NA 232231M501 67768486          NA
+50:  NA 232231M502 69668301          NA
+51:  NA 232231M503 69668301          NA
+52:  NA 232231M504 69668301          NA
+53:  NA 232231M505 68359260          NA
+54:  NA 232231M506 68359259          NA
+55:  NA 232421M501 68282794          NA
+56:  NA 232421M502 68282794          NA
+57:  NA 232421M503 68494407          NA
+58:  NA 232421M504 68835436          NA
+59:  NA 232421M505 69641444          NA
+60:  NA 232421M506 68282794          NA
+61:  NA 232421M507 68282794          NA
+62:  NA 232513M508 69668301          NA
+63:  NA 232553m506 69668301           0
+64:  NA 232553m507 69641444          NA
+65:  NA 232832M507 68282795        1500
+66:  NA 233223M510 68632365          NA
+67:  NA 233223M511 69668301          NA
+68:  NA 233341M507 68688437          NA
+69:  NA 233451M501 68688437          NA
+70:  NA 233451M502 68282794          NA
+71:  NA 233451M503 21001981          NA
+72:  NA 233451M504 21001981          NA
+73:  NA 233451M505 69989874          NA
+74:  NA 233451M506 69668301          NA
+75:  NA 233451M507 68688437          NA
+76:  NA 233452M508 69668301        1500
+77:  NA 233513M509 68733474          NA
+    Vis      Batch Code.dầu Nước.rework</code></pre>
+</div>
+</div>
+<p>We see that the values that are not convertable are NA value. Therefore, these data points are dropped from the dataset</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] &quot;Remanining data points 4853&quot;</code></pre>
+</div>
+</div>
+<p>Next, we convert <code>Nước.rework</code> to numeric as value. But in this case, we don’t need to drop the NA value</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>      Vis              Batch             Code.dầu          Nước.rework   
+ Min.   :    3.18   Length:4853        Length:4853        Min.   :    0  
+ 1st Qu.: 1022.00   Class :character   Class :character   1st Qu.:  700  
+ Median : 1488.00   Mode  :character   Mode  :character   Median : 1500  
+ Mean   : 1316.61                                         Mean   : 1256  
+ 3rd Qu.: 1750.00                                         3rd Qu.: 1500  
+ Max.   :18253.00                                         Max.   :16547  
+                                                          NA&#39;s   :3313   </code></pre>
+</div>
+</div>
+<p>After summarise the data table, we can see that the min value for Vis is <code>3.18</code>, which is not possible so may be this is an outlier.</p>
+<p>Starting with 200 as the lower limit</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>       Vis      Batch Code.dầu Nước.rework
+ 1:   3.18 230151M511 68359259          NA
+ 2: 152.00 230243M501 68195812        1500
+ 3:  60.00 230562m507 68611370          NA
+ 4:  62.00 230812M504 68346786          NA
+ 5: 136.00 230832m504 68282794          NA
+ 6:  57.00 230963M506 68611370          NA
+ 7:  62.00 231011M501 68611370          NA
+ 8:  55.00 231322M510 68346786          NA
+ 9:  29.00 231461M404 68768560          NA
+10:  55.00 231611M501 68611370          NA
+11:  55.00 232341M504 68611370          NA
+12: 198.00 232422M503 68835436          NA
+13:  71.00 232851M502 68346786          NA
+14:  60.00 233463M503 68346786          NA
+15:  31.00 233511M507 68733472          NA</code></pre>
+</div>
+</div>
+<p>Next, we use 500, which is half of the first quarter</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>      Vis      Batch Code.dầu Nước.rework
+   1: 420 230113M504 68733474          NA
+   2: 420 230122M501 68733474          NA
+   3: 488 230122M502 68733474          NA
+   4: 250 230123M506 21001981          NA
+   5: 280 230123M507 21001981          NA
+  ---                                    
+1108: 207 233642M507 68632365          NA
+1109: 345 233642M508 21001981          NA
+1110: 334 233642M509 69762523          NA
+1111: 249 233643M505 21001981          NA
+1112: 315 233643M506 21001981          NA</code></pre>
+</div>
+</div>
+<p>There are lots of data points whose Vis under 500 so we can lower the setpoint to 300</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] &quot;Which SKUs have value of Vis under 300&quot;</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] &quot;21001981&quot; &quot;68632365&quot; &quot;68359260&quot; &quot;68359259&quot; &quot;69636786&quot; &quot;68195812&quot;
+ [7] &quot;67909220&quot; &quot;68611370&quot; &quot;68346786&quot; &quot;68282794&quot; &quot;21120829&quot; &quot;68768560&quot;
+[13] &quot;68835436&quot; &quot;69762523&quot; &quot;69668301&quot; &quot;68733472&quot;</code></pre>
+</div>
+</div>
+<p>Naturally, we calculate the proportion of batches belong to above SKU that have Vis value under 300</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>[[1]]
+[1] &quot;21001981 : 38.961038961039 %&quot;
+
+[[2]]
+[1] &quot;68632365 : 32.719836400818 %&quot;
+
+[[3]]
+[1] &quot;68359260 : 50 %&quot;
+
+[[4]]
+[1] &quot;68359259 : 30.9090909090909 %&quot;
+
+[[5]]
+[1] &quot;69636786 : 48.936170212766 %&quot;
+
+[[6]]
+[1] &quot;68195812 : 0.87719298245614 %&quot;
+
+[[7]]
+[1] &quot;67909220 : 0.334448160535117 %&quot;
+
+[[8]]
+[1] &quot;68611370 : 100 %&quot;
+
+[[9]]
+[1] &quot;68346786 : 100 %&quot;
+
+[[10]]
+[1] &quot;68282794 : 0.19723865877712 %&quot;
+
+[[11]]
+[1] &quot;21120829 : 42.8571428571429 %&quot;
+
+[[12]]
+[1] &quot;68768560 : 100 %&quot;
+
+[[13]]
+[1] &quot;68835436 : 1.36986301369863 %&quot;
+
+[[14]]
+[1] &quot;69762523 : 33.3333333333333 %&quot;
+
+[[15]]
+[1] &quot;69668301 : 0.110619469026549 %&quot;
+
+[[16]]
+[1] &quot;68733472 : 1.88679245283019 %&quot;</code></pre>
+</div>
+</div>
+<p>Those SKUs that have vis-under-300 proportion smaller than <code>2%</code> are considered outlier and, hence, these data points will be removed</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] &quot;68195812&quot; &quot;67909220&quot; &quot;68282794&quot; &quot;68835436&quot; &quot;69668301&quot; &quot;68733472&quot;</code></pre>
+</div>
+</div>
+<p>Removing these data points whose vis under 300 and belong to above SKU</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] &quot;Remaining 4842&quot;</code></pre>
+</div>
+</div>
+<p>Just like <code>AD</code>, <code>Batch</code> will be checked whether it compromises with the pattern</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] &quot;Number of record following pattern&quot;</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 4842</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] &quot;Over 4842&quot;</code></pre>
+</div>
+</div>
+<p>For consistency, we convert all the lowercase <code>m</code> to uppercase.</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] &quot;Uppercasing..&quot;</code></pre>
+</div>
+</div>
+<p>Rename the columns as with <code>AD</code></p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>   label      batch      sku amount_rework
+1:  1520 230111M501 68282794            NA
+2:  1542 230111M502 68282794            NA
+3:  1420 230111M503 68282794            NA
+4:  1380 230111M504 68195812            NA
+5:  1450 230111M505 68282794            NA
+6:  1489 230111M506 68282794            NA</code></pre>
+</div>
+</div>
+<p>Finally, we save the dataset</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] &quot;Saving done.&quot;</code></pre>
+</div>
+</div>
 
 </section>
 </section>
