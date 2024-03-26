@@ -74,3 +74,17 @@ Checking column `Ngày.tháng.năm`
 paste("Count NA Values:", sum(is.na(df1501[, Ngày.tháng.năm])))
 df1501[is.na(Ngày.tháng.năm), ]
 ```
+
+Dữ liệu thuộc dạng time series
+
+Phân tích yếu tố thời gian của time series
+
+- Nguyên liệu khác nhau
+- Tuổi thọ của máy móc
+
+Bắt đầu với các features đơn giản
+
+Bắt đầu trước với factors theo kinh nghiệm và model đơn giản.
+
+Sau đó với phân tích và feature engineering và đẩy vào model để thể hiện đóng góp so với phiên bản theo kinh nghiệm
+

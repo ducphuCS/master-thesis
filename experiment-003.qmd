@@ -8,7 +8,6 @@ author:
         city:  Tp. Hồ Chí Minh
         state: Vietnam
 execute: 
-  cache: true
   echo: false
 format: 
   html:
@@ -45,7 +44,7 @@ Following the design of experiment (DOE), we define the outcome and our objectiv
 Since the LABEL dataset is the result of checking semi-products' quality criterias such as:
 
 ```{r}
-df <- openxlsx::read.xlsx("dataset/labels.xlsx", sheet = "Sheet2", detectDates = TRUE)
+df <- openxlsx::read.xlsx("dataset/labels.xlsx", sheet = "Sheet2", detectDates = FALSE)
 colnames(df)
 ```
 
@@ -67,14 +66,29 @@ Some options are
 2. Some survey about the amount, advantages, dis-advantages of each type of problem in manufacturing industries.
 3. Define levels of 'goodness' in industries and which papers used the same term.
 
-The objectives of thesis is then:
+The `Objective` of the thesis is stated below
 
-1. With statistical analysis, we will perform feature engineering on raw data of the manufacturing processes to select most impactful factors on the quality criterias of the batch.
-
-2. Artificiall intelligence models are then constructed with the aim to reach 95\% of confidence intervals when predicting the target.
-
+1. Conduct a feature selection in which the chosen factor are decided by explainable methods such as statistics or SHAP value
+2. Modeling the relationship between factors and outcomes to construct a decision - support application in which user will give inputs  and the models show the calculation and recommend the decision to make.
+3. Build an web-based software that has a user interface for the decision-support application.
 
 # Approaches
+
+## Statistical and explainable feature selection
+
+For each factors, we conduct analysises in explainable method, namely statistics value like correlation, analysis of variance, SHAP value, etc, to sort the factors by their importances.
+
+## Decision making support model
+
+After the subset of features is determined, the decision making process is modeled via either calculation or machine learning algorithms which are also selected based on their abilities to be interpretable.
+
+Decision making support model is a model in which user are allowed to input the data and set the desired parameter settings, for example, the significance level or threshold that decides whether factors are considered important.
+
+## User interface for decision making tools
+
+An user interface built with library `shiny` [@shiny] and statistical programming language R.
+
+# Literature Review
 
 ## Improving performances with statistic-based feature selection
 
@@ -89,7 +103,7 @@ Regarding the statistic analysis we mentioned, some approaches can be:
 - ***Hypothesis testing*** to accept or reject the effect of factors on the outcome
 - **Analysis of correlation**  to select features 
 
-According to [@CHANDRASHEKAR201416], there are 3 types of methods `Filter`, `Wrapper`, and `Embedded`.
+According to [@CHANDRASHEKAR201416], there are 3 main types of feature selection methods `Filter`, `Wrapper`, and `Embedded`.
 
 - **Filter** use variable ranking techniques for variable selection by ordering.
 - **Wrapper** use predictor as black box and the performances as the objective function to evaluate the variable subset.
@@ -121,6 +135,156 @@ Ensemble feature selection in [@haury2011influence; @abeel2010robust] is a novel
 
 ## Explainable AI
 
+Artificially intelligence system increasingly affects human, therefore, human demands a clearer explainations from these system before making decisions. 
+
+According to [@app12031353], the concepts of explainable artificial intelligence (XAI) have four main aspects, namely `Stage`, `Scope`, `Input` and `Output`, in [@vilone2021]. 
+
+### Stage
+
+[@vilone2021] states that the `stages` can be defined as *ante hoc* and *post hoc*.
+
+- ***Ante hoc*** starts before the training of data to generate explaination for the decisions. For examples, transparent models such as `fuzzy models` and `tree-based models`
+- ***Post hoc*** combines the base model with external model which mimics the base model's behaviour to generate an explaination for the users. For examples, this method is usually associated with models in which the inference process is a blackbox, such as `support vector machines` or `neural networks`.
+
+### Scope
+
+The scope defines the extent of an explaination, globally or locally. Global scope means the whole inferential technique of a model is made transparent to the user. Meanwhile, explaination which is given to user for a single instance of inference is called local scope. The `decision tree` can be an example for both scope. The whole tree represents the global scope, while a single branch ca be treated as a local explaination.
+
 ## Web-based application
 
 After all the analysis and modeling, a Shiny Application as demo with [@shiny].
+
+# Modeling
+
+## Data preprocessing
+
+```{r}
+library("data.table")
+```
+
+```{r}
+df <- openxlsx::read.xlsx("dataset/labels.xlsx", sheet = "Sheet2", detectDates = FALSE)
+colnames(df)
+```
+Remove non-infomative features
+```{r}
+dt <- data.table::data.table(df)
+dt <- dt[, .(TUẦN, Ngày.tháng.năm, Ca, Mixer, Code.dầu, KL.theo.mixer, KL.thực.tế, Nước.rework, Batch, Màu, Mùi, AD, Vis, pH, SG)]
+```
+Since the input data belongs to only mixer 1501, only the label for batches in mixer 1501 should be kept.
+```{r}
+unique(dt$Mixer)
+```
+Some unexpected values exist in column Mixer, such as `NA` value. Some possible typos can be seen such as `301`, `1502`, `51`, `504`.
+
+Without the context, it is the best to keep only records with value `1501`.
+
+```{r}
+dt1501 <- dt[Mixer == 1501, ]
+summary(dt1501)
+```
+
+We can seen in the summary report. Numeric labels like AD, pH, SG need to be pre-processed. 
+
+### AD
+```{r}
+dt1501_ad <- dt1501$AD
+length(dt1501_ad[is.numeric(dt1501_ad)])
+```
+None of current data in column `AD` is numerical. We then try to convert them to numerical ones.
+
+Number of `NaN` value
+```{r}
+dt_numeric_ad <- as.numeric(dt1501_ad)
+length(dt_numeric_ad[is.na(dt_numeric_ad)])
+```
+Number of numerical value after converting.
+```{r}
+length(dt_numeric_ad[!is.na(dt_numeric_ad)])
+```
+We back to the original before converting to seen why the converting failed for some cases.
+
+```{r}
+dt1501_ad[is.na(dt_numeric_ad)]
+```
+It seems that the un-convertable values are mostly missing values. Other cases are typos which we will remove.
+
+In conclusion, for the case of `AD`, we convert the column to numeric and remove `NaN` value.
+
+```{r}
+dt1501_ad <- dt1501[, .(TUẦN, Ngày.tháng.năm, Ca, Mixer, Code.dầu, KL.theo.mixer, KL.thực.tế, Nước.rework, Batch, AD)]
+dt1501_ad[, AD := as.numeric(AD)]
+dt1501_ad <- dt1501_ad[!is.na(AD), ]
+head(dt1501_ad)
+```
+Number of records in the current dataset
+
+```{r}
+nrow(dt1501_ad)
+```
+Column `KL.theo.mixer` is a constant depends on which mixer is refered to. Therefore, in this case, all of the value in column `KL.theo.mixer` should be 16500.
+
+```{r}
+print("Removing column KL.theo.mixer")
+dt1501_ad <- dt1501_ad[, KL.theo.mixer := NULL]
+```
+Besides, the column `KL.thực.tế` should be calculated from the times series data of Weight of main mixer. Therefore, in the dataset of label, we remove it as well.
+
+```{r}
+print("Removing column KL.thực.tế")
+dt1501_ad <- dt1501_ad[, KL.thực.tế := NULL]
+```
+Column `Nước.rework` contains information about how much rework water is used in batches. Unit of measurement is `kg`.
+
+```{r}
+as.numeric(dt1501_ad$Nước.rework)
+```
+We are not sure whether we will use this information. Better convert and save it.
+
+```{r}
+dt1501_ad[, Nước.rework := as.numeric(Nước.rework)]
+```
+We take a glance at the current status for the dataset
+
+```{r}
+summary(dt1501_ad)
+```
+Before saving the dataset, it is a must to check if the format for column `Batch` is correct and matched with column `Ngày.tháng.năm` and `Ca`.
+
+Number of value in column `Batch` is in correct format
+```{r}
+sum(stringi::stri_detect_regex(dt1501_ad$Batch, pattern = "[0-9]{6}[Mm][0-9]{3}"))
+```
+It means all the value for this column are ready to use
+
+```{r}
+sum(stringi::stri_detect_regex(dt1501_ad$Batch, pattern = "[0-9]{6}[Mm][0-9]{3}")) == nrow(dt1501_ad)
+```
+For consistency, we convert all the lowercase `m` to uppercase.
+
+```{r}
+print("Uppercasing..")
+dt1501_ad[, Batch := stringi::stri_trans_toupper(Batch)]
+```
+We next validate the matching between `Ngày.tháng.năm` and `Ca`.
+```{r}
+print("Converting Ngày.tháng.năm to Date")
+parsed_dates <- lapply(dt1501_ad$Ngày.tháng.năm, function(date) {
+  parsed_date <- tryCatch({
+    lubridate::dmy(date)
+  }, error = function(e) {
+    NULL
+  }, warning = function(w) {
+    tryCatch({
+      new_date <- lubridate::ydm(as.Date(as.numeric(date), origin = "1899-12-30"))
+      print(pa)
+    }, error = function(e) {NA}, warning = function(w) {
+      lubridate::ymd(as.Date(as.numeric(date), origin = "1899-12-30"))
+    })
+  })
+  return(parsed_date)
+})
+lubridate::as_date(unlist(parsed_dates))
+# dt1501_ad[is.na(parsing_date(dt1501_ad$Ngày.tháng.năm))]$Ngày.tháng.năm
+```
+Checking result of parsing process
