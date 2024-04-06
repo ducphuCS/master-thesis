@@ -1,0 +1,505 @@
+
+# Data exploration
+
+## Label preprocessing
+
+```{r}
+library("data.table")
+```
+
+```{r}
+df <- openxlsx::read.xlsx("dataset/labels.xlsx", sheet = "Sheet2", detectDates = FALSE)
+colnames(df)
+```
+
+Remove non-infomative features
+
+```{r}
+dt <- data.table::data.table(df)
+dt <- dt[, .(TUẦN, Ngày.tháng.năm, Ca, Mixer, Code.dầu, KL.theo.mixer, KL.thực.tế, Nước.rework, Batch, Màu, Mùi, AD, Vis, pH, SG)]
+```
+
+Since the input data belongs to only mixer 1501, only the label for batches in mixer 1501 should be kept.
+
+```{r}
+unique(dt$Mixer)
+```
+
+Some unexpected values exist in column Mixer, such as `NA` value. Some possible typos can be seen such as `301`, `1502`, `51`, `504`.
+
+Without the context, it is the best to keep only records with value `1501`.
+
+```{r}
+dt1501 <- dt[Mixer == 1501, ]
+summary(dt1501)
+```
+
+We can seen in the summary report. Numeric labels like AD, pH, SG need to be pre-processed.
+
+### AD
+
+```{r}
+dt1501_ad <- dt1501$AD
+length(dt1501_ad[is.numeric(dt1501_ad)])
+```
+
+None of current data in column `AD` is numerical. We then try to convert them to numerical ones.
+
+Number of `NaN` value
+
+```{r}
+dt_numeric_ad <- as.numeric(dt1501_ad)
+length(dt_numeric_ad[is.na(dt_numeric_ad)])
+```
+
+Number of numerical value after converting.
+
+```{r}
+length(dt_numeric_ad[!is.na(dt_numeric_ad)])
+```
+
+We back to the original before converting to seen why the converting failed for some cases.
+
+```{r}
+dt1501_ad[is.na(dt_numeric_ad)]
+```
+
+It seems that the un-convertable values are mostly missing values. Other cases are typos which we will remove.
+
+In conclusion, for the case of `AD`, we convert the column to numeric and remove `NaN` value.
+
+```{r}
+dt1501_ad <- dt1501[, .(TUẦN, Ngày.tháng.năm, Ca, Mixer, Code.dầu, KL.theo.mixer, KL.thực.tế, Nước.rework, Batch, AD)]
+dt1501_ad[, AD := as.numeric(AD)]
+dt1501_ad <- dt1501_ad[!is.na(AD), ]
+head(dt1501_ad)
+```
+
+Number of records in the current dataset
+
+```{r}
+nrow(dt1501_ad)
+```
+
+Column `KL.theo.mixer` is a constant depends on which mixer is refered to. Therefore, in this case, all of the value in column `KL.theo.mixer` should be 16500.
+
+```{r}
+print("Removing column KL.theo.mixer")
+dt1501_ad <- dt1501_ad[, KL.theo.mixer := NULL]
+```
+
+Besides, the column `KL.thực.tế` should be calculated from the times series data of Weight of main mixer. Therefore, in the dataset of label, we remove it as well.
+
+```{r}
+print("Removing column KL.thực.tế")
+dt1501_ad <- dt1501_ad[, KL.thực.tế := NULL]
+```
+
+Column `Nước.rework` contains information about how much rework water is used in batches. Unit of measurement is `kg`.
+
+```{r}
+as.numeric(dt1501_ad$Nước.rework)
+```
+
+We are not sure whether we will use this information. Better convert and save it.
+
+```{r}
+dt1501_ad[, Nước.rework := as.numeric(Nước.rework)]
+```
+
+We take a glance at the current status for the dataset
+
+```{r}
+summary(dt1501_ad)
+```
+
+Before saving the dataset, it is a must to check if the format for column `Batch` is correct and matched with column `Ngày.tháng.năm` and `Ca`.
+
+Number of value in column `Batch` is in correct format
+
+```{r}
+sum(stringi::stri_detect_regex(dt1501_ad$Batch, pattern = "[0-9]{6}[Mm][0-9]{3}"))
+```
+
+It means all the value for this column are ready to use
+
+```{r}
+sum(stringi::stri_detect_regex(dt1501_ad$Batch, pattern = "[0-9]{6}[Mm][0-9]{3}")) == nrow(dt1501_ad)
+```
+
+For consistency, we convert all the lowercase `m` to uppercase.
+
+```{r}
+print("Uppercasing..")
+dt1501_ad[, Batch := stringi::stri_trans_toupper(Batch)]
+```
+
+We next validate the matching between `Ngày.tháng.năm` and `Ca`.
+
+The value in column `Ngày.tháng.năm` unfortunately can not be used since user save Date in unconsistent format and can not be transformed.
+
+Therefore, we accept that `Batch` is the only time indicator here
+
+```{r}
+colnames(dt1501_ad)
+dt1501_ad <- dt1501_ad[, .(Code.dầu, Nước.rework, Batch, AD)]
+head(dt1501_ad)
+```
+
+Finally, we re-name the columns
+
+```{r}
+colnames(dt1501_ad) <- c("sku", "amount_rework", "batch", "label")
+```
+
+#### Summary
+
+In conclusion, for criteria AD, we have already done these following processing step:
+
+1.  Fill NA Value in column target (AD).
+2.  Remove columns `KL.theo.mixer` and `KL.thực.tế`
+3.  Convert `Nước.rework` to numeric value
+4.  Re-format column `Batch` to uppercase
+5.  Drop other time indicators, only keep `Batch`
+6.  Rename the dataset
+
+```{r}
+data.table::setcolorder(dt1501_ad, c("label", "batch", "sku", "amount_rework"))
+qs::qsave(x = dt1501_ad, file = "data/dt_label_ad.qs")
+print("Saving done.")
+```
+
+### Vis
+
+We follow the same approach above for `Vis`
+
+Initiate dataset for `Vis`
+
+```{r}
+dt1501_vis <- dt1501[, .(Vis, Batch, Code.dầu, Nước.rework)]
+head(dt1501_vis)
+nrow(dt1501_vis)
+```
+
+Converting column Vis to numeric and see if there are invalid value
+
+```{r}
+dt1501_vis[is.na(as.numeric(dt1501_vis$Vis)), ]
+```
+
+We see that the values that are not convertable are NA value. Therefore, these data points are dropped from the dataset
+
+```{r}
+dt1501_vis[, Vis := as.numeric(Vis)]
+dt1501_vis <- dt1501_vis[!is.na(Vis), ]
+paste("Remanining data points", nrow(dt1501_vis))
+```
+
+Next, we convert `Nước.rework` to numeric as value. But in this case, we don't need to drop the NA value
+
+```{r}
+dt1501_vis[, Nước.rework := as.numeric(Nước.rework)]
+summary(dt1501_vis)
+```
+
+After summarise the data table, we can see that the min value for Vis is `3.18`, which is not possible so may be this is an outlier.
+
+Starting with 200 as the lower limit
+
+```{r}
+dt1501_vis[Vis < 200, ]
+```
+
+Next, we use 500, which is half of the first quarter
+
+```{r}
+dt1501_vis[Vis < 500, ]
+```
+
+There are lots of data points whose Vis under 500 so we can lower the setpoint to 300
+
+```{r}
+print("Which SKUs have value of Vis under 300")
+unique(dt1501_vis[Vis < 300, Code.dầu])
+```
+
+Naturally, we calculate the proportion of batches belong to above SKU that have Vis value under 300
+
+```{r}
+lapply(unique(dt1501_vis[Vis < 300, Code.dầu]), function(val_sku) {
+  paste(val_sku, ":", nrow(dt1501_vis[Vis < 300 & Code.dầu == val_sku, ]) / nrow(dt1501_vis[Code.dầu == val_sku, ]) * 100, "%")
+})
+```
+
+Those SKUs that have vis-under-300 proportion smaller than `2%` are considered outlier and, hence, these data points will be removed
+
+```{r}
+l_sku_vis_under_300_outlier <- lapply(unique(dt1501_vis[Vis < 300, Code.dầu]), function(val_sku) {
+  val_prop <- nrow(dt1501_vis[Vis < 300 & Code.dầu == val_sku, ]) / nrow(dt1501_vis[Code.dầu == val_sku, ]) * 100
+  if (val_prop < 2) {
+    return(val_sku)
+  } else {
+    return(NULL)
+  }
+})
+l_sku_vis_under_300_outlier <- unlist(l_sku_vis_under_300_outlier)
+l_sku_vis_under_300_outlier <- l_sku_vis_under_300_outlier[!is.null(l_sku_vis_under_300_outlier)]
+print(l_sku_vis_under_300_outlier)
+```
+
+Removing these data points whose vis under 300 and belong to above SKU
+
+```{r}
+dt1501_vis <- dt1501_vis[!(Vis < 300 & Code.dầu %in% (l_sku_vis_under_300_outlier)), ]
+paste("Remaining", nrow(dt1501_vis))
+```
+
+Just like `AD`, `Batch` will be checked whether it compromises with the pattern
+
+```{r}
+print("Number of record following pattern")
+sum(stringi::stri_detect_regex(dt1501_vis$Batch, patter = "[0-9]{6}[Mm][0-9]{3}"))
+paste("Over", nrow(dt1501_vis))
+```
+
+For consistency, we convert all the lowercase `m` to uppercase.
+
+```{r}
+print("Uppercasing..")
+dt1501_vis[, Batch := stringi::stri_trans_toupper(Batch)]
+```
+
+Rename the columns as with `AD`
+
+```{r}
+colnames(dt1501_vis) <- c("label", "batch", "sku", "amount_rework")
+head(dt1501_vis)
+```
+
+Finally, we save the dataset
+
+```{r}
+qs::qsave(dt1501_vis, "data/dt_label_vis.qs")
+print("Saving done.")
+```
+
+### pH
+
+TODO Preprocessing the dataset for label pH
+
+### SG
+
+## Feature Processing {#sec-feature-processing}
+
+Every times series contains millions of data points. Howevery, this times series are not so helpful when they stay in their raw format. It is because of the fact that labels are identified by batches, while the signal describing the context are not. Therefore, the very first time is to split the data into smaller sets correspondingly in the same time window as the labels.
+
+The process can be simplified as:
+
+1.  Find the time windows where the batch and the label belong to, namely the begin timestamp and end timestamp
+2.  Filter the inputs in above time windows
+3.  Preprocess the framed inputs into valueable features, namely the feature engineering process,
+
+Notes that the word *valueable* is not quantifiable. More details about the methodology to refine the feature are discussed in [@sec-feature-engineering].
+
+In this section, we describe detaily about the above process and the results from it. Each of following subsections is dedicated for a time series in the dataset.
+
+### Build batches time windows
+
+In the dataset, each data point in the time series **batch_name** is the name of the batch which was running at that time. Therefore, thanks to this time series, we can identify the beginning and ending of a batch, after cleaning and validating the data.
+
+```{r}
+library("magrittr")
+library("data.table")
+```
+
+```{r, cache = TRUE}
+df_batch_name <- data.table::fread("./dataset/1501/batch_name.csv")
+```
+
+Just like other time series, the **batch_name** has 3 columns `{r} names(df_batch_name)`, standing for timestamp, tag name, and value, respectively.
+
+| Column | Data type                           |
+|--------|-------------------------------------|
+| TS     | `{r} class(df_batch_name[, TS])`    |
+| Tag    | `{r} class(df_batch_name[, Tag])`   |
+| Value  | `{r} class(df_batch_name[, Value])` |
+
+: Data type of time series *batch_name*
+
+As a internal policy, the Batch name is a string of characters whose format is constant
+
+> YYWWDSMBB
+
+, in which:
+
+-   YY is the year
+-   WW is the week number
+-   D is the day of the week, with Monday has value of $1$
+-   S is the shift in day
+-   M is the identifing code for the mixer
+-   BB is the order of batch in corresponding shift.
+
+```{r, cache = TRUE}
+is_correct_format <- stringi::stri_detect_regex(as.character(df_batch_name$Value), pattern = "^[0-9]{9}$")
+df_incorrect_format <- df_batch_name[!is_correct_format, ]
+```
+
+Using package *stringi* in [@gagolewski_stringi_2022] to detect the wrong format value, we find `{r} nrow(df_incorrect_format)` rows which has incorrect format. For example, the values that do not follow the pattern are `{r} unique(df_batch_name[!is_correct_format, Value])`. We remove them from the time series.
+
+```{r, cache = TRUE}
+df_correct_format <- df_batch_name[is_correct_format, ]
+```
+
+#### Filter the start and end of batches
+
+After preprocessing the time series, we can get the beginning and the end of batch by filtering the data points belong to the batch and get the min, max value. However, this approach may lead to the situation when there are some noise in the time series.
+
+To be more specific, if there is a error data point, whose timestamp is larger than the batch its value represents. Then the time window of the batch itself will be incorrect since the max value of timestampe will return the error data point.
+
+Therefore, to maintain the order of the time series, we identify the starting point and the end of the batch by
+
+1.  Browse through the time series
+2.  Check if the value of current timestamp is the same as the previous one and the one after it.
+
+-   If *True*, remove the data point.
+-   Otherwise, keep the data point and go to the next one.
+
+```{r, cache = TRUE}
+is_same_lag <- as.logical(data.table::nafill(as.numeric(df_correct_format$Value == data.table::shift(df_correct_format$Value), type = "lag"), fill = 0))
+is_same_lead <- as.logical(data.table::nafill(as.numeric(df_correct_format$Value == data.table::shift(df_correct_format$Value, type = "lead")), fill = 0))
+df_trimmed <- df_correct_format[!(is_same_lag & is_same_lead), .(TS, Value)]
+```
+
+The number of rows after applying the above algorithm is `{r} nrow(df_trimmed)`, which is a odd number. Therefore, a validation is required to ensure the *Timestamp* and the *Batch Name* is compatible.
+
+#### Validate the start and end of batches
+
+In the above section, we determined the number of rows in the resulting data frame should have been a even number, since the batches are distingushed by a pair of the starting and endpoint. Therefore, in this section, we conduct an algorithm to identify the abnormal batches.
+
+Batches are labeled abnormal when the **batch name** appears more than two times in the resulting table, following the reason stated above.
+
+```{r}
+counting_appearances <- df_trimmed[, .(count = .N), by = Value]
+```
+
+After aggregating the appearances, the number of **batch name** that appears different from two times is `{r} nrow(counting_appearances[count > 2, ])`. Some of them can be listed as `{r} head(counting_appearances[count > 2, ])$Value`.
+
+We then investigate those outlier.
+
+```{r}
+v_is_abnormal_batches <- counting_appearances[count != 2, ]$Value
+# df_trimmed[Value %in% v_is_abnormal_batches, ]
+df_abnormal_batches <- df_trimmed[Value %in% v_is_abnormal_batches, ]
+df_remove_candidates <- df_abnormal_batches[Value != data.table::shift(df_abnormal_batches$Value, type = "lag") & Value != data.table::shift(df_abnormal_batches$Value, type = "lead"), ]
+
+df_removed <- df_trimmed[! (TS %in% df_remove_candidates$TS & Value %in% df_remove_candidates$Value), ]
+df_last_candidates <- df_removed[Value != data.table::shift(df_removed$Value, type = "lag") & Value != data.table::shift(df_removed$Value, type = "lead"), ]
+
+df_validated <- df_removed[! (TS %in% df_last_candidates$TS & Value %in% df_last_candidates), ]
+```
+
+The elimination follow these steps:
+
+-   Determine which batches appear other than two times.
+-   Remove data point whose `Value` is not the same as both the previous and the next neighbors.
+
+The validated table has `{r} nrow(df_validated)` rows, all the data points satisfy the condition that either the `Value` of the row is the same as the previous one or the next one (the number of rows not satisfy is `{r} nrow(df_validated[Value != data.table::shift(df_validated$value, type = "lag") & Value != data.table::shift(df_validated$Value, type = "lead"), ])`).
+
+Another needed validation is if the `TS` of the starting point is smaller than the `TS` of the ending point, finding `{r} nrow(df_validated[TS > data.table::shift(df_validated$TS) & mod(.I, 2), ])` rows that do not satisfy the condition.
+
+We expected that each *batch name* will appear exactly two times. How
+
+```{r}
+df_batches <- data.table::data.table(
+  batch_name = df_validated[seq(1, nrow(df_validated), 2), ]$Value,
+  start = df_validated[seq(1, nrow(df_validated), 2), ]$TS,
+  end = df_validated[seq(2,nrow(df_validated), 2), ]$TS
+)
+df_batches[, duration := as.numeric(end - start) / 60]
+```
+
+From the dataset above, we construct a so-called **batches** dataframe to store the starting and ending points of batches, indexed by the *batch name*. The duration of the batch can be calculated by the difference between two timestamps. This following table demonstrate the summary of batches duration.
+
+```{r}
+summary(df_batches$duration)
+```
+
+According to the standardized process, the minimum and maximum time for a batch are 15 and 60 minutes, respectively. There are cases that batches can be lengthened to more than 3 hours. The number of batches whose duration are outside of the domain-defined range is `{r} nrow(df_batches[duration < 15 | duration > 180, ])`. The potential reasons for the outlier are
+
+-   There is an incident that the process has to be paused for a long time.
+-   There is machine errors, manufacturing machine and streaming infracstructure, that leads to incorrect data recording.
+
+```{r}
+df_batches <-df_batches[duration >= 15 & duration <= 180, ]
+```
+
+In this study, we ignore and remove these batches, `{r} nrow(df_batches)` data points remaining.
+
+```{r, output = FALSE, eval = knitr::is_html_output(), screenshot.force = TRUE}
+#| fig-cap: "Distribution of batches duration"
+#| fig-pos: "h"
+#| label: fig-batches-duration
+fig_batches_duration <- ggplot2::ggplot(data = df_batches, mapping = ggplot2::aes(x = "", y = duration)) + 
+  ggplot2::geom_boxplot(varwidth = TRUE, fill = "gray", outlier.colour = "red", outlier.size = .75, outlier.shape = 1) + 
+  ggplot2::labs(title = "Plot of batches duration", x = "Duration", y = "Minutes")
+  ggplot2::theme_bw()
+ggplot2::ggsave("images/fid_batch_duration.svg", plot = fig_batches_duration)
+```
+
+![Distribution of batches duration](images/fid_batch_duration.svg){#fig-batches-duration fig-pos="h"}
+
+The [@fig-batches-duration] demonstrates the distribution of batches duration. We can see that most of the batches last about 30 to 60 minutes. However, the number of batches that are marked outlier is remarkable. This can be interpreted as the manufacturing process is not stable and has high variance.
+
+This section comes to an end after we receive a data table containing the time window of batches. With `{r} nrow(df_batches)` batches, the next phase is to engineer features by following steps stated in [@sec-feature-processing].
+
+```{r, output = FALSE}
+qs::qsave(x = df_batches, file = "data/df_batches.qs")
+```
+
+### Weight of main mixer
+
+Continue the data processing phase, the next target is the time series of the weight of the main mixer. This section will use the result from the above one, filter and validate the data of product volume within batches.
+
+```{r, cache = TRUE}
+df_weight_main <- data.table::fread("dataset/1501/main_mixer_weight_of_main_mixer.csv")
+df_weight_main <- df_weight_main[, .(TS, Value)]
+data.table::setnames(df_weight_main, old = "Value", new = "weight_main")
+```
+
+```{r, cache = TRUE, eval = FALSE}
+l_weight_main <- lapply(seq_len(nrow(df_batches)), function(index) {
+   df <- df_weight_main[TS >= df_batches[index, start] & TS <= df_batches[index, end], ]
+   df[, batch := df_batches[index, batch_name]]
+   return(df)
+ })
+ qs::qsave(l_weight_main, "data/df_weight_main_mixer_batch_binded.qs")
+```
+
+```{r, cache = TRUE}
+l_weight_main <- qs::qread("data/df_weight_main_mixer_batch_binded.qs")
+```
+
+```{r, output = FALSE, eval = knitr::is_html_output(), screenshot.force = TRUE}
+fig_weight_main_1 <- ggplot2::ggplot(data = l_weight_main[[1]], mapping = ggplot2::aes(x = TS, y = weight_main)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("Weight of main mixer batch", unique(l_weight_main[[1]]$batch)), x = "Timestamp", y = "Weight of main mixer") +
+  ggplot2::theme_bw()
+
+fig_weight_main_2 <- ggplot2::ggplot(data = l_weight_main[[2]], mapping = ggplot2::aes(x = TS, y = weight_main)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("Weight of main mixer batch", unique(l_weight_main[[2]]$batch)), x = "Timestamp", y = "Weight of main mixer") +
+  ggplot2::theme_bw()
+
+ggplot2::ggsave("images/fig_weight_main_1.svg", plot = fig_weight_main_1)
+ggplot2::ggsave("images/fig_weight_main_2.svg", plot = fig_weight_main_2)
+```
+
+::: {#fig-weight-main layout-ncol="2" fig-pos="h"}
+![Weight of main mixer in batch 230111501](images/fig_weight_main_1.svg)
+
+![Weight of main mixer in batch 230111502](images/fig_weight_main_2.svg)
+
+An example of filtered of main mixer volume
+:::
+
+## Feature Engineering {#sec-feature-engineering}
