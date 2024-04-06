@@ -48,7 +48,12 @@ po/*~
 # RStudio Connect folder
 rsconnect/
 
+*.Rproj
+
 dataset/
 data/*
 
 app.r
+/.quarto/
+
+_book
