@@ -1,0 +1,105 @@
+project:
+  type: book
+  preview:
+    browser: false
+
+book:
+  title: Predicting quality of home care liquid products
+  date: "March 28, 2024"
+  author:
+    name: "Nguyễn Đức Phú"
+  abstract: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam quis accumsan ante. Quisque lorem metus, varius id urna eget, lacinia dapibus sem. Etiam laoreet, quam ac mollis congue, arcu leo dictum neque, nec euismod sem enim luctus odio. Donec condimentum tortor sit amet mollis volutpat. Donec ornare libero vel velit malesuada consectetur. Vestibulum in sem non justo dignissim congue at quis erat. Integer quis erat vitae mi maximus fringilla tristique nec odio. Morbi non ipsum sapien. Vestibulum tortor est, ultricies in eros et, bibendum iaculis justo. Cras pellentesque enim quam, id pretium lacus lacinia non. Integer velit neque, ultrices a malesuada vel, imperdiet quis enim. Quisque eu facilisis urna, ut faucibus lorem. Donec mollis turpis sed arcu venenatis interdum. Nulla facilisis tortor ac scelerisque consequat."
+  chapters:
+    - index.qmd
+    - 02_literature-review.qmd
+    - 03_methodology.qmd
+    - 04_data.qmd
+    - 05_modeling.qmd
+    - 06_summary.qmd
+    - 07_references.qmd
+  appendices:
+    - Appendices/AppendixA.qmd
+  downloads: pdf
+  repo-url: https://github.com/ducphuCS/master-thesis/
+  repo-actions: [edit, source, issue]
+  search: true
+
+execute: 
+  echo: false
+
+thesis:
+  supervisor: 
+    name: Dr. Thoại Nam
+    # url: https://quarto.org/
+  degree-name: Master of Science
+  university: Vietnam National University
+  department: Ho Chi Minh University of Technology
+  # group: Informatics Program
+  faculty: Faculty of Computer Science and Engineering
+  declaration: "Frontmatter/declaration.tex"
+  quotation:
+    text: "Thanks to my solid academic training, today I can write hundreds of words on virtually any topic without possessing a shred of information, which is how I got a good job in journalism."
+    attribution: Dave Barry
+  acknowledgements: "Frontmatter/acknowledgements.tex"
+  abbreviations: "Frontmatter/abbreviations.tex"
+  symbols: "Frontmatter/symbols.tex"
+  dedication: "Frontmatter/dedication.tex"
+  logo: images/logo.png
+  logo-height: "3cm"
+
+bibliography: references.bib
+cls: MastersDoctoralThesis.cls
+
+
+format:
+  html:
+    theme: lux
+  quarto-thesis-pdf:
+    geometry:
+      - inner=3cm
+      - outer=4cm
+      - top=2cm
+      - bottom=2cm
+      - headsep=22pt
+      - headheight=11pt
+      - footskip=33pt
+      - ignorehead
+      - ignorefoot
+      - heightrounded
+    colorlinks: true
+    toclinkcolor: blue
+    toc-depth: 3
+
+# format:
+#   html:
+#     theme: cosmo
+#     toc: true
+#     toc-location: left
+#     lof: true
+#     lot: true
+
+#     number-sections: true
+#     number-depth: 3
+
+#   pdf:
+#     documentclass: scrreprt
+#     papersize: a4
+#     lof: true
+#     lot: true
+#     geometry:
+#       - inner=3cm
+#       - outer=4cm
+#       - top=3cm
+#       - bottom=4cm
+#       - headsep=22pt
+#       - headheight=11pt
+#       - footskip=33pt
+#       - ignorehead
+#       - ignorefoot
+#       - heightrounded
+#     fontsize: 11pt
+#     pdfengine: xelatex
+#     include-in-header: include-in-header.tex
+#     template-partials:
+#       - before-body.tex
+#       - toc.tex
