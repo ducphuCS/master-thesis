@@ -12,15 +12,23 @@ execute:
 format: 
   html:
     toc: true 
-    toc-title: Contents
+    toc-title: Table of contents
     toc-location: left
+
+    toc-depth: 3
+    lof: true
+    lot: true
     
     embed-resources: true
+
     number-sections: true 
     number-depth: 3
+
     html-math-method: katex
 
     code-fold: true
+    
+    papersize: a4
 bibliography: references.bib
 ---
 
