@@ -1,293 +1,129 @@
-
 # Data exploration
 
-## Label preprocessing
+We have already discussed the methodology in [@sec-method]. This section will discuss how we transform the raw data, mostly in format of time series, into useable and meaningful features. These features will be the main character in the following [@sec-modeling]. Some of algorithms resulted from this section also come handy in the deployment phase, joining in the phase to pre-process the new inputs for model inference.
 
+The layout of this section is listed as below:
+
+- ***Label preprocessing***. Labels are validated and added the information about batches. The datasets at the end of this section are the target for training models.
+- ***Feature processing***. Next, this section describe how we cut the data from machines and devices to smaller parts, identified by the batch name.
+- ***Feature engineering***. Finally, algorithms are introduced in this section to transform the *batches binded* time series to features.
+
+## Label preprocessing {#sec-label-processing}
+
+The label which means the results of quality checking process for each batches are manually recorded in format of a spreadsheet. This section conducts analysis, validation and cleaning processes to transform the spreadsheet to a label dataset for training.
 ```{r}
 library("data.table")
 ```
 
 ```{r}
 df <- openxlsx::read.xlsx("dataset/labels.xlsx", sheet = "Sheet2", detectDates = FALSE)
-colnames(df)
 ```
-
-Remove non-infomative features
 
 ```{r}
 dt <- data.table::data.table(df)
 dt <- dt[, .(TUẦN, Ngày.tháng.năm, Ca, Mixer, Code.dầu, KL.theo.mixer, KL.thực.tế, Nước.rework, Batch, Màu, Mùi, AD, Vis, pH, SG)]
 ```
 
-Since the input data belongs to only mixer 1501, only the label for batches in mixer 1501 should be kept.
-
-```{r}
-unique(dt$Mixer)
-```
-
-Some unexpected values exist in column Mixer, such as `NA` value. Some possible typos can be seen such as `301`, `1502`, `51`, `504`.
-
-Without the context, it is the best to keep only records with value `1501`.
+The original dataset consists a total of `r ncol(df)` columns. Some of them contains non-relevant or non-informative metadata data which will be removed. Since the datasets of machine signals all belongs to only mixer 1501, only the label for batches in mixer 1501 should be kept. The values of mixers that can be founded in the spreadsheet are `r unique(dt$Mixer)`. As we discussed, only Mixer 1501 are kept.
 
 ```{r}
 dt1501 <- dt[Mixer == 1501, ]
-summary(dt1501)
 ```
 
-We can seen in the summary report. Numeric labels like AD, pH, SG need to be pre-processed.
+Within the resulting dataset, numerical label fields such as *AD*, *pH*, *Vis*, and *SG* are kept and will continue to be processed.
 
-### AD
+### AD {.unnumbered .unlisted}
 
-```{r}
+```{r, warning = FALSE}
 dt1501_ad <- dt1501$AD
-length(dt1501_ad[is.numeric(dt1501_ad)])
-```
-
-None of current data in column `AD` is numerical. We then try to convert them to numerical ones.
-
-Number of `NaN` value
-
-```{r}
 dt_numeric_ad <- as.numeric(dt1501_ad)
-length(dt_numeric_ad[is.na(dt_numeric_ad)])
 ```
 
-Number of numerical value after converting.
+The spreadsheet is manually filled in and the format may not be infered correctly. Hence, converting to the correct format, namely numeric, for these label fields is the first task. In the process, we happen to face `r length(dt_numeric_ad[is.na(dt_numeric_ad)])` cases that we failed to convert. Investigating these case, we found that most of the value are missing, accounting for `{r} length(dt1501_ad[is.na(dt_numeric_ad)]) / length(dt_numeric_ad[is.na(dt_numeric_ad)]) * 100` $%$ of the cases. The other two are spelling errors.
 
-```{r}
-length(dt_numeric_ad[!is.na(dt_numeric_ad)])
-```
-
-We back to the original before converting to seen why the converting failed for some cases.
-
-```{r}
-dt1501_ad[is.na(dt_numeric_ad)]
-```
-
-It seems that the un-convertable values are mostly missing values. Other cases are typos which we will remove.
-
-In conclusion, for the case of `AD`, we convert the column to numeric and remove `NaN` value.
-
-```{r}
+```{r, warning = FALSE}
 dt1501_ad <- dt1501[, .(TUẦN, Ngày.tháng.năm, Ca, Mixer, Code.dầu, KL.theo.mixer, KL.thực.tế, Nước.rework, Batch, AD)]
 dt1501_ad[, AD := as.numeric(AD)]
 dt1501_ad <- dt1501_ad[!is.na(AD), ]
-head(dt1501_ad)
 ```
 
-Number of records in the current dataset
+The number of records in the dataset for the criteria *AD* is `{r} nrow(dt1501_ad)`.
 
-```{r}
-nrow(dt1501_ad)
-```
-
-Column `KL.theo.mixer` is a constant depends on which mixer is refered to. Therefore, in this case, all of the value in column `KL.theo.mixer` should be 16500.
-
-```{r}
-print("Removing column KL.theo.mixer")
+```{r, warning = FALSE}
 dt1501_ad <- dt1501_ad[, KL.theo.mixer := NULL]
-```
-
-Besides, the column `KL.thực.tế` should be calculated from the times series data of Weight of main mixer. Therefore, in the dataset of label, we remove it as well.
-
-```{r}
-print("Removing column KL.thực.tế")
-dt1501_ad <- dt1501_ad[, KL.thực.tế := NULL]
-```
-
-Column `Nước.rework` contains information about how much rework water is used in batches. Unit of measurement is `kg`.
-
-```{r}
-as.numeric(dt1501_ad$Nước.rework)
-```
-
-We are not sure whether we will use this information. Better convert and save it.
-
-```{r}
 dt1501_ad[, Nước.rework := as.numeric(Nước.rework)]
 ```
 
-We take a glance at the current status for the dataset
+The format of value in column **Batch** is important since it is the key to link the labels and the time series which will be used as inputs. Therefore, a validation step is required to ensure the manually recorded name of batches is good to use.
+
+As a internal policy, the Batch name is a string of characters whose format is constant
+
+> YYWWDS'M'MBB
+
+, in which:
+
+-   YY is the year
+-   WW is the week number
+-   D is the day of the week, with Monday has value of $1$
+-   S is the shift in day
+-   'M' is the letter M, stands for *mixer*.
+-   M is the identifing code for the mixer
+-   BB is the order of batch in corresponding shift.
+
+The number of *batch names* that are in correct format is `{r} sum(stringi::stri_detect_regex(dt1501_ad$Batch, pattern = "[0-9]{6}[Mm][0-9]{3}"))`. It means all the value for this column are ready to use. For consistency, we convert all the lowercase *m* to uppercase.
 
 ```{r}
-summary(dt1501_ad)
-```
-
-Before saving the dataset, it is a must to check if the format for column `Batch` is correct and matched with column `Ngày.tháng.năm` and `Ca`.
-
-Number of value in column `Batch` is in correct format
-
-```{r}
-sum(stringi::stri_detect_regex(dt1501_ad$Batch, pattern = "[0-9]{6}[Mm][0-9]{3}"))
-```
-
-It means all the value for this column are ready to use
-
-```{r}
-sum(stringi::stri_detect_regex(dt1501_ad$Batch, pattern = "[0-9]{6}[Mm][0-9]{3}")) == nrow(dt1501_ad)
-```
-
-For consistency, we convert all the lowercase `m` to uppercase.
-
-```{r}
-print("Uppercasing..")
 dt1501_ad[, Batch := stringi::stri_trans_toupper(Batch)]
-```
-
-We next validate the matching between `Ngày.tháng.năm` and `Ca`.
-
-The value in column `Ngày.tháng.năm` unfortunately can not be used since user save Date in unconsistent format and can not be transformed.
-
-Therefore, we accept that `Batch` is the only time indicator here
-
-```{r}
-colnames(dt1501_ad)
 dt1501_ad <- dt1501_ad[, .(Code.dầu, Nước.rework, Batch, AD)]
-head(dt1501_ad)
-```
-
-Finally, we re-name the columns
-
-```{r}
 colnames(dt1501_ad) <- c("sku", "amount_rework", "batch", "label")
 ```
-
-#### Summary
-
-In conclusion, for criteria AD, we have already done these following processing step:
-
-1.  Fill NA Value in column target (AD).
-2.  Remove columns `KL.theo.mixer` and `KL.thực.tế`
-3.  Convert `Nước.rework` to numeric value
-4.  Re-format column `Batch` to uppercase
-5.  Drop other time indicators, only keep `Batch`
-6.  Rename the dataset
 
 ```{r}
 data.table::setcolorder(dt1501_ad, c("label", "batch", "sku", "amount_rework"))
 qs::qsave(x = dt1501_ad, file = "data/dt_label_ad.qs")
-print("Saving done.")
 ```
 
-### Vis
-
-We follow the same approach above for `Vis`
-
-Initiate dataset for `Vis`
-
-```{r}
+### Viscosity {.unnumbered .unlisted}
+```{r, warning = FALSE}
 dt1501_vis <- dt1501[, .(Vis, Batch, Code.dầu, Nước.rework)]
-head(dt1501_vis)
-nrow(dt1501_vis)
-```
-
-Converting column Vis to numeric and see if there are invalid value
-
-```{r}
-dt1501_vis[is.na(as.numeric(dt1501_vis$Vis)), ]
-```
-
-We see that the values that are not convertable are NA value. Therefore, these data points are dropped from the dataset
-
-```{r}
 dt1501_vis[, Vis := as.numeric(Vis)]
 dt1501_vis <- dt1501_vis[!is.na(Vis), ]
-paste("Remanining data points", nrow(dt1501_vis))
-```
-
-Next, we convert `Nước.rework` to numeric as value. But in this case, we don't need to drop the NA value
-
-```{r}
 dt1501_vis[, Nước.rework := as.numeric(Nước.rework)]
-summary(dt1501_vis)
-```
-
-After summarise the data table, we can see that the min value for Vis is `3.18`, which is not possible so may be this is an outlier.
-
-Starting with 200 as the lower limit
-
-```{r}
-dt1501_vis[Vis < 200, ]
-```
-
-Next, we use 500, which is half of the first quarter
-
-```{r}
-dt1501_vis[Vis < 500, ]
-```
-
-There are lots of data points whose Vis under 500 so we can lower the setpoint to 300
-
-```{r}
-print("Which SKUs have value of Vis under 300")
-unique(dt1501_vis[Vis < 300, Code.dầu])
-```
-
-Naturally, we calculate the proportion of batches belong to above SKU that have Vis value under 300
-
-```{r}
-lapply(unique(dt1501_vis[Vis < 300, Code.dầu]), function(val_sku) {
-  paste(val_sku, ":", nrow(dt1501_vis[Vis < 300 & Code.dầu == val_sku, ]) / nrow(dt1501_vis[Code.dầu == val_sku, ]) * 100, "%")
-})
-```
-
-Those SKUs that have vis-under-300 proportion smaller than `2%` are considered outlier and, hence, these data points will be removed
-
-```{r}
-l_sku_vis_under_300_outlier <- lapply(unique(dt1501_vis[Vis < 300, Code.dầu]), function(val_sku) {
-  val_prop <- nrow(dt1501_vis[Vis < 300 & Code.dầu == val_sku, ]) / nrow(dt1501_vis[Code.dầu == val_sku, ]) * 100
-  if (val_prop < 2) {
-    return(val_sku)
-  } else {
-    return(NULL)
-  }
-})
-l_sku_vis_under_300_outlier <- unlist(l_sku_vis_under_300_outlier)
-l_sku_vis_under_300_outlier <- l_sku_vis_under_300_outlier[!is.null(l_sku_vis_under_300_outlier)]
-print(l_sku_vis_under_300_outlier)
-```
-
-Removing these data points whose vis under 300 and belong to above SKU
-
-```{r}
-dt1501_vis <- dt1501_vis[!(Vis < 300 & Code.dầu %in% (l_sku_vis_under_300_outlier)), ]
-paste("Remaining", nrow(dt1501_vis))
-```
-
-Just like `AD`, `Batch` will be checked whether it compromises with the pattern
-
-```{r}
-print("Number of record following pattern")
-sum(stringi::stri_detect_regex(dt1501_vis$Batch, patter = "[0-9]{6}[Mm][0-9]{3}"))
-paste("Over", nrow(dt1501_vis))
-```
-
-For consistency, we convert all the lowercase `m` to uppercase.
-
-```{r}
-print("Uppercasing..")
-dt1501_vis[, Batch := stringi::stri_trans_toupper(Batch)]
-```
-
-Rename the columns as with `AD`
-
-```{r}
 colnames(dt1501_vis) <- c("label", "batch", "sku", "amount_rework")
-head(dt1501_vis)
 ```
+We follow the same approach above for the quality criteria **Viscosity**, or *Vis*, which are to convert the type of data, remove missing values and spelling erorrs. However, in the case of *viscosity*, thanks to the domain knowledge provided by experts in the industry, we know that the range of the viscosity of different products can vary a lot. Therefore, a more careful approach for the label of viscosity is conducted.
 
-Finally, we save the dataset
+First, we summary the current situation of column *Vis*, as showed below
 
 ```{r}
-qs::qsave(dt1501_vis, "data/dt_label_vis.qs")
-print("Saving done.")
+#| label: tbl-summary-vis
+#| tbl-cap: Descriptive analysis for column *Vis* 
+tbl_summary <- summary(dt1501_vis$label)
+knitr::kable(data.frame(Statistics = names(tbl_summary), Value = as.numeric(tbl_summary)))
 ```
 
-### pH
+As in the [@tbl-summary-vis], we can see that the min value for Vis is $3.18$ and the max is $18253$, which are not possible values of viscosity that the products can achieve. Hence, they may be outliers. To detect the outlier, we visualize the distribution of viscosity value in the following figure.
 
-TODO Preprocessing the dataset for label pH
+```{r}
+#| label: fig-box-vis
+#| fig-cap: Distribution of products viscosity
+#| fig-pos: "h"
+fig_vis <- ggplot2::ggplot(data = dt1501_vis[label < 4000, ], mapping = ggplot2::aes(x = "label", y = label)) +
+  ggplot2::geom_violin(fill = "gray") + ggplot2::theme_bw() 
+plot(fig_vis)
+```
 
-### SG
+Note that, in [@fig-box-vis], we eliminated the values above $4000$, which are cleary impossible based on the descriptive analytics in [@tbl-summary-vis]. The figure depicts that there are two distributions hidden in the distribution of viscosity values. This is because the dataset contains many of products that belongs to different stock-keeping units (SKUs), around `r length(unique(dt1501_vis$sku))` SKUs found in the dataset. Just like with *AD*, we also calculate the propotion of *batch name* following the correct format, which is `r sum(stringi::stri_detect_regex(dt1501_vis$batch, patter = "[0-9]{6}[Mm][0-9]{3}")) / nrow(dt1501_vis) * 100` $\%$.
+
+```{r}
+dt1501_vis[, Batch := stringi::stri_trans_toupper(batch)]
+qs::qsave(dt1501_vis, "data/dt_label_vis.qs")
+```
+
+### pH {.unnumbered .unlisted}
+
+
+### SG {.unnumbered .unlisted}
 
 ## Feature Processing {#sec-feature-processing}
 
@@ -326,25 +162,13 @@ Just like other time series, the **batch_name** has 3 columns `{r} names(df_batc
 
 : Data type of time series *batch_name*
 
-As a internal policy, the Batch name is a string of characters whose format is constant
-
-> YYWWDSMBB
-
-, in which:
-
--   YY is the year
--   WW is the week number
--   D is the day of the week, with Monday has value of $1$
--   S is the shift in day
--   M is the identifing code for the mixer
--   BB is the order of batch in corresponding shift.
 
 ```{r, cache = TRUE}
 is_correct_format <- stringi::stri_detect_regex(as.character(df_batch_name$Value), pattern = "^[0-9]{9}$")
 df_incorrect_format <- df_batch_name[!is_correct_format, ]
 ```
 
-Using package *stringi* in [@gagolewski_stringi_2022] to detect the wrong format value, we find `{r} nrow(df_incorrect_format)` rows which has incorrect format. For example, the values that do not follow the pattern are `{r} unique(df_batch_name[!is_correct_format, Value])`. We remove them from the time series.
+Using package *stringi* in [@gagolewski_stringi_2022] to detect the wrong format value, discussed in [@sec-label-processing], we find `{r} nrow(df_incorrect_format)` rows which has incorrect format. For example, the values that do not follow the pattern are `{r} unique(df_batch_name[!is_correct_format, Value])`. We remove them from the time series.
 
 ```{r, cache = TRUE}
 df_correct_format <- df_batch_name[is_correct_format, ]
@@ -421,7 +245,10 @@ df_batches[, duration := as.numeric(end - start) / 60]
 From the dataset above, we construct a so-called **batches** dataframe to store the starting and ending points of batches, indexed by the *batch name*. The duration of the batch can be calculated by the difference between two timestamps. This following table demonstrate the summary of batches duration.
 
 ```{r}
-summary(df_batches$duration)
+#| label: tbl-summary-duration
+#| tbl-cap: Descriptive analysis of batches duration 
+tbl_duration_sum <- summary(df_batches$duration)
+knitr::kable(data.frame(Statistic = names(tbl_duration_sum), Value = as.numeric(tbl_duration_sum)))
 ```
 
 According to the standardized process, the minimum and maximum time for a batch are 15 and 60 minutes, respectively. There are cases that batches can be lengthened to more than 3 hours. The number of batches whose duration are outside of the domain-defined range is `{r} nrow(df_batches[duration < 15 | duration > 180, ])`. The potential reasons for the outlier are
@@ -435,7 +262,7 @@ df_batches <-df_batches[duration >= 15 & duration <= 180, ]
 
 In this study, we ignore and remove these batches, `{r} nrow(df_batches)` data points remaining.
 
-```{r, output = FALSE, eval = knitr::is_html_output(), screenshot.force = TRUE}
+```{r, output = FALSE, eval = knitr::is_html_output()}
 #| fig-cap: "Distribution of batches duration"
 #| fig-pos: "h"
 #| label: fig-batches-duration
@@ -479,7 +306,7 @@ l_weight_main <- lapply(seq_len(nrow(df_batches)), function(index) {
 l_weight_main <- qs::qread("data/df_weight_main_mixer_batch_binded.qs")
 ```
 
-```{r, output = FALSE, eval = knitr::is_html_output(), screenshot.force = TRUE}
+```{r, output = FALSE, eval = knitr::is_html_output()}
 fig_weight_main_1 <- ggplot2::ggplot(data = l_weight_main[[1]], mapping = ggplot2::aes(x = TS, y = weight_main)) +
   ggplot2::geom_line() +
   ggplot2::labs(title = paste("Weight of main mixer batch", unique(l_weight_main[[1]]$batch)), x = "Timestamp", y = "Weight of main mixer") +
@@ -502,4 +329,151 @@ ggplot2::ggsave("images/fig_weight_main_2.svg", plot = fig_weight_main_2)
 An example of filtered of main mixer volume
 :::
 
+The time series of the volume of product follows the three phases:
+
+1. Increasing at the beginning since the materials are dosed into main mixer.
+2. Maintaining a level when flushing materials is done and the main task is to mix.
+3. Decreasing at the end when the batches are done and the semi products are transfered to storage tank.
+
+### Temperature of main mixer
+
+The temperature of the product within the tank is also an important time series. It is because when the materials are dosed and mixed, the chemical reaction happened. Therefore, the temperature is often increasing at the start of the batches and move into a stable phase later.
+
+```{r}
+df_temp_main <- data.table::fread("dataset/1501/main_mixer_temperature_of_main_mixer.csv")
+df_temp_main <- df_temp_main[!stringi::stri_detect_fixed(Tag, pattern = "input chlor water"), .(TS, Value)]
+data.table::setnames(df_temp_main, old = "Value", new = "temp_main")
+```
+
+```{r, eval = FALSE}
+l_temp_main <- lapply(seq_len(nrow(df_batches)), function(index) {
+   df <- df_temp_main[TS >= df_batches[index, start] & TS <= df_batches[index, end], ]
+   df[, batch := df_batches[index, batch_name]]
+   return(df)
+ })
+qs::qsave(l_temp_main, "data/df_temp_main_mixer_batch_binded.qs")
+```
+
+```{r}
+l_temp_main <- qs::qread(file = "data/df_temp_main_mixer_batch_binded.qs")
+```
+```{r}
+#| fig-cap: An example of filtered of main mixer temperature
+#| fig-subcap:
+#| - Batch 230112504
+#| - Batch 230113503
+#| layout-ncol: 2
+#| label: fig-temp-main
+#| fig-pos: "h"
+fig_temp_main_1 <- ggplot2::ggplot(data = l_temp_main[[10]], mapping = ggplot2::aes(x = TS, y = temp_main)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("Temperature of main mixer batch", unique(l_temp_main[[10]]$batch)), x = "Timestamp", y = "Temp of main mixer") +
+  ggplot2::theme_bw()
+
+fig_temp_main_2 <- ggplot2::ggplot(data = l_temp_main[[20]], mapping = ggplot2::aes(x = TS, y = temp_main)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("Temperature of main mixer batch", unique(l_temp_main[[20]]$batch)), x = "Timestamp", y = "Temp of main mixer") +
+  ggplot2::theme_bw()
+plot(fig_temp_main_1)
+plot(fig_temp_main_2)
+```
+
+The [@fig-temp-main] depicts the above logic. However, the time period where the main mixer temperature is stable may be different for each batch. More detail about how we transform the filtered signal to features are discussed in [@sec-feature-engineering].
+
+### Pressure of main mixer circulation system
+
+The processing line contains multiple stations. The products are kept in the pump and moved around stations through a circulation system. The circulation also takes part in the cooling process for the semi product. Another role of the circulation system is to make sure the materials are mixed evenly.
+
+According to experts, the pressure of pipes in a main mixer circulation system may hide the insights about the viscosity of the producted being mixed. The more dense the mixture is, the higher the pressure is.
+
+```{r}
+df_press_main <- data.table::fread("dataset/1501/main_mixer_pressure_of_circulation_pump.csv")
+df_press_main <- df_press_main[, .(TS, Value)]
+data.table::setnames(df_press_main, old = "Value", new = "press_main")
+```
+
+```{r, eval = FALSE}
+l_press_main <- lapply(seq_len(nrow(df_batches)), function(index) {
+   df <- df_press_main[TS >= df_batches[index, start] & TS <= df_batches[index, end], ]
+   df[, batch := df_batches[index, batch_name]]
+   return(df)
+ })
+qs::qsave(l_press_main, "data/df_press_main_mixer_batch_binded.qs")
+```
+
+```{r, cache = TRUE}
+l_press_main <- qs::qread("data/df_press_main_mixer_batch_binded.qs")
+```
+
+```{r}
+#| fig-cap: An example of filtered of main mixer pipe pressure of circulation system
+#| fig-subcap:
+#| - Batch 230111501
+#| - Batch 230111502
+#| layout-ncol: 2
+#| label: fig-press-main
+#| fig-pos: "h"
+fig_press_main_1 <- ggplot2::ggplot(data = l_press_main[[1]], mapping = ggplot2::aes(x = TS, y = press_main)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("Pressure of circulation pipe batch", unique(l_press_main[[1]]$batch)), x = "Timestamp", y = "Circulation system press") +
+  ggplot2::theme_bw()
+
+fig_press_main_2 <- ggplot2::ggplot(data = l_press_main[[2]], mapping = ggplot2::aes(x = TS, y = press_main)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("Pressure of circulation pipe batch", unique(l_press_main[[2]]$batch)), x = "Timestamp", y = "Circulation system press") +
+  ggplot2::theme_bw()
+plot(fig_press_main_1)
+plot(fig_press_main_2)
+```
+
+The values pictured in [@fig-press-main] has phases the can be easily detected. The pressure of the circulation system depends on steps in the manufacuring formulation. For example, when the formulation requires stronger mix, the values go high. Meanwhile the values are $0$ when the circulation pump is off. There may be correlation between the *pressure of the circulation system* and the *speed of circulation pump*, which we will explore more in [@sec-feature-engineering].
+
+### Speed of main mixer circulation pump
+
+In the above section, we filtered the time series of the pipe pressure in the circulation system of the main mixer. This section will discuss another factor in the mixing process, which is the speed of the pump used in the main mixer circulation system.
+
+```{r, cache = TRUE}
+df_speed_main <- data.table::fread("dataset/1501/main_mixer_speed_of_circulation.csv")
+df_speed_main_pump <- data.table::fread("dataset/1501/main_mixer_speed_of_circulation_pump.csv")
+df_speed_main <- df_speed_main[!stringi::stri_detect_fixed(Tag, pattern = "pump"), .(TS, Value)]
+df_speed_main_pump <- df_speed_main_pump[, .(TS, Value)]
+data.table::setnames(df_speed_main, old = "Value", new = "speed_main")
+data.table::setnames(df_speed_main_pump, old = "Value", new = "speed_pump")
+```
+
+There are two time series in the set of machine signals that have the very same name for the *speed of circulation pump*, namely *speed_of_circulation* and *speed_of_circulation_pump*. We analyze these two signals to determine if they represent for the same information.
+
+```{r}
+#| fig-cap: Comparision two time series of circulation pump speed
+#| fig-subcap:
+#| - speed_of_circulation
+#| - speed_of_circulation_pump
+#| layout-nrow: 2
+#| label: fig-compare-speed-main
+df_sample_speed_main <- df_speed_main[TS >= df_batches[5000, start] & TS <= df_batches[5000, end], ]
+df_sample_speed_pump <- df_speed_main_pump[TS >= df_batches[5000, start] & TS <= df_batches[5000, end], ]
+fig_speed_main <- ggplot2::ggplot(data = df_sample_speed_main, mapping = ggplot2::aes(x = TS, y = speed_main)) +
+  ggplot2::geom_line() + ggplot2::theme_bw()
+fig_speed_pump <- ggplot2::ggplot(data = df_sample_speed_pump, mapping = ggplot2::aes(x = TS, y = speed_pump)) +
+  ggplot2::geom_line() + ggplot2::theme_bw()
+plot(fig_speed_main)
+plot(fig_speed_pump)
+```
+
+Despite the fact that two time series are different, the *speed_of_circulation* is a newly installed signal and only available from `r min(df_speed_main$TS)`. Therefore, using it as a feature later is not possible. Hence, we discard the time series *speed_of_circulation*.
+
+As we discussed in [@sec-base-vis], these four machine signals we conduct processing above are the key features for the baseline model of predicting viscosity. However, these time series are only pre-processed and still not in format of a features that can be used as model inputs. The [@sec-feature-engineering] will discuss more about how we turn these *batches binded* raw information into valuable features.
+
 ## Feature Engineering {#sec-feature-engineering}
+
+There are points that distinguish the training and deployment for models. One of them is that, in the training process, we can see the whole batch. Whereas, only a partial time series are recorded in a production system for the application that the models are part of.
+
+This leads to the reasons for our approaches when we carry out the feature engineering process. That is
+
+> We conduct algorithms that receive a time window of time series as input. The outcomes are features detected by the algorithms.
+
+This section is dedicated to introduce the algorithm and some insights behind them. The order of discussed feature detection is to follow the models' inputs in [@sec-baseline].
+
+### Volumn of main mixer before discharging
+
+The time period before the discharge happens is the phase where the products are stable and ready.

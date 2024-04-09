@@ -1,10 +1,10 @@
-# Models
+# Models {#sec-modeling}
 
-## Baseline model
+## Baseline model {#sec-baseline}
 
 For evaluation purpose, the baseline models for Viscosity and pH are introduced for comparison. These models, whose features are based on domain knowledge of experts in the industry, are explainable and set a minimum requirements for further models. This section will show the process to reproduce the model, which has already been deployed in mass production, with the dataset used in the thesis.
 
-### Viscosity baseline model
+### Viscosity baseline model {#sec-base-vis}
 
 ```{r}
 # Load the label
