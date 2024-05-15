@@ -5,7 +5,7 @@ contributes:
   format:
     pdf:
       documentclass: MastersDoctoralThesis
-      classoption: ["11pt", "english", "singlespacing", "headsepline"]
+      classoption: ["13pt", "english", "onehalfspacing", "headsepline"]
       format-resources:
         - MastersDoctoralThesis.cls
       template-partials: 
@@ -19,11 +19,11 @@ contributes:
         - partials/in-header.tex
       geometry: 
         - paper=a4paper
-        - inner=2.5cm
-        - outer=3.8cm
+        - inner=2cm
+        - outer=3.5cm
         - bindingoffset=.5cm
-        - top=1.5cm
-        - bottom=1.5cm
+        - top=3cm
+        - bottom=3cm
       colorlinks: true
       citecolor: magenta
       linkcolor: blue

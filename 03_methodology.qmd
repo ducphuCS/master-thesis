@@ -1,4 +1,0 @@
-# Methodology {#sec-method}
-
-## Outlier {#sec-outlier}
-

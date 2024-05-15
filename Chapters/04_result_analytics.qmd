@@ -1,0 +1,765 @@
+```{r}
+library(data.table)
+library(magrittr)
+```
+
+# Result and analytics {#sec-result}
+
+## Baseline models {#sec-baseline}
+
+For evaluation purposes, the baseline models for Viscosity and pH are introduced for comparison. These models, whose features are based on the domain knowledge of experts in the industry, are explainable and set minimum requirements for further models. This section will show the process to reproduce the model, which has already been deployed in mass production, with the dataset used in the thesis.
+
+### Viscosity baseline model {#sec-base-vis}
+
+```{r}
+train_data <- qs::qread("data/df_train_baseline_vis.qs")
+label <- qs::qread("data/dt_label_vis.qs")
+label$batch <- as.numeric(stringi::stri_sub_all_replace(label$batch, stringi::stri_locate_all_regex(label$batch, pattern = "[mM]"), replacement = ""))
+```
+
+```{r}
+dta_vis <- data.table::data.table(train_data)
+dta_merged <- merge(dta_vis, label, all = TRUE, by.x = "batch_name", by.y = "batch")
+dta_ready <- dta_merged[!is.na(start) & !is.na(end) & !is.na(label), 
+  .(batch_name, start, end, duration, weight, press, temp, speed, first_stable_index, sku, amount_rework, label)]
+qs::qsave(x = dta_ready, file = "data/train/baseline_vis.qs")
+```
+
+The feature engineering process made in [@sec-feature-engineering] results in a dataset of `r nrow(train_data)` set of features, mapping with a `r nrow(label)`-record labels, we receive a dataset for training with `r nrow(dta_ready)` entries. As discussed in [@sec-explainable-ai], we fit the dataset to two explainable models, namely Linear Regression and Random Forest Regression.
+
+
+```{r}
+dta_ready <- qs::qread("data/train/baseline_vis.qs")
+```
+
+```{python, warning = FALSE, echo = FALSE, output = FALSE}
+import pandas as pd
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LinearRegression
+
+rfr_model = RandomForestRegressor()
+lr_model = LinearRegression()
+
+X = r.dta_ready.loc[:, ["weight", "press", "temp", "speed"]]
+y = r.dta_ready["label"]
+```
+
+```{python, warning = FALSE, echo = FALSE, output = FALSE}
+from sklearn.model_selection import train_test_split
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=1)
+
+rfr_model.fit(X_train, y_train)
+rfr_r_square = rfr_model.score(X_test, y_test)
+
+lr_model.fit(X_train, y_train)
+lr_r_square = lr_model.score(X_test, y_test)
+```
+
+The performance of models is shown in the below table
+
+Model| R square
+---|---:
+Linear Regression| `{r} reticulate::py$lr_r_square`
+Random Forest Regressor| `{r} reticulate::py$rfr_r_square`
+
+: Performance of Viscosity baseline models {.striped .hover #tbl-vis-baseline-performance}
+
+```{python}
+rfr_predict = rfr_model.predict(X_test)
+lr_predict = lr_model.predict(X_test)
+```
+
+```{python, eval = FALSE}
+import pickle
+
+f = open("data/models/baseline_vis_randomforest.pkl", "wb")
+pickle.dump(rfr_model, f)
+f.close()
+
+f = open("data/models/baseline_vis_linear.pkl", "wb")
+pickle.dump(lr_model, f)
+f.close()
+```
+```{r}
+#| layout-ncol: 2
+#| layout-nrow: 2
+#| fig-cap: Predicted value and truth value for baseline viscosity models
+#| fig-subcap: 
+#| - Random Forest Regressor 
+#| - Linear Regression
+#| - RDR, high error points highlighted
+#| - LR, high error points highlighted
+#| label: fig-predict-truth-baseline-vis
+#| fig-pos: "htbp"
+rfr_compare <- data.table::data.table(
+  predicted_value = reticulate::py$rfr_predict,
+  truth_value = reticulate::py$y_test
+)
+fig_rfr <- ggplot2::ggplot(data = rfr_compare, mapping = ggplot2::aes(x = predicted_value, y = truth_value)) +
+  ggplot2::geom_point() + ggplot2::labs(x = "Predicted value", y = "Truth value") +
+  ggplot2::theme_bw()
+plot(fig_rfr)
+lr_compare <- data.table::data.table(
+  predicted_value = reticulate::py$lr_predict,
+  truth_value = reticulate::py$y_test
+)
+fig_lr <- ggplot2::ggplot(data = lr_compare, mapping = ggplot2::aes(predicted_value, y = truth_value)) +
+  ggplot2::geom_point() + ggplot2::labs(x = "Predicted value", y = "Truth value") +
+  ggplot2::theme_bw()
+plot(fig_lr)
+
+rfr_outlier <- which(rfr_compare$predicted_value > 500 & rfr_compare$truth_value < 1000)
+lr_outlier <- which(lr_compare$predicted_value > 500 & lr_compare$truth_value < 1000)
+shared_outlier <- intersect(rfr_outlier, lr_outlier)
+
+rfr_compare[(shared_outlier), outlier := "red"]
+rfr_compare[!(shared_outlier), outlier := "black"]
+
+lr_compare[(shared_outlier), outlier := "red"]
+lr_compare[!(shared_outlier), outlier := "black"]
+
+fig_rfr_outlier <- ggplot2::ggplot(data = rfr_compare, mapping = ggplot2::aes(x = predicted_value, y = truth_value)) +
+  ggplot2::geom_point(color = rfr_compare$outlier) + ggplot2::labs(x = "Predicted value", y = "Truth value") +
+  ggplot2::theme_bw()
+plot(fig_rfr_outlier)
+fig_lr_outlier <- ggplot2::ggplot(data = lr_compare, mapping = ggplot2::aes(predicted_value, y = truth_value)) +
+  ggplot2::geom_point(color = lr_compare$outlier) + ggplot2::labs(x = "Predicted value", y = "Truth value") +
+  ggplot2::theme_bw()
+plot(fig_lr_outlier)
+```
+
+[@fig-predict-truth-baseline-vis] shows that there is a common between the results of Random Forest Regressor and Linear Regression. The group of points located at the bottom of both [@fig-predict-truth-baseline-vis-1; @fig-predict-truth-baseline-vis-2] is the main reason for the reduction of the accuracy of models. We highlight the shared *high error* points in [@fig-predict-truth-baseline-vis-3; @fig-predict-truth-baseline-vis-4]. When these points are removed from the training data, the Random Forest Regressor model may achieve a much higher performance.
+
+
+### pH baseline model {#sec-base-ph}
+
+```{r, eval = FALSE}
+train_data <- qs::qread("data/df_train_baseline_ph.qs")
+label <- qs::qread("data/dt_label_ph.qs")
+label$batch <- as.numeric(stringi::stri_sub_all_replace(label$batch, stringi::stri_locate_all_regex(label$batch, pattern = "[mM]"), replacement = ""))
+```
+
+```{r, eval = FALSE}
+dta_ph <- data.table::data.table(train_data)
+dta_merged <- merge(dta_ph, label, all = TRUE, by.x = "batch_name", by.y = "batch")
+dta_ready <- dta_merged[!is.na(start) & !is.na(end) & !is.na(label), 
+  .(batch_name, start, end, duration, water, las, naoh, sles1, capb, sku, amount_rework, label)]
+qs::qsave(x = dta_ready, file = "data/train/baseline_ph.qs")
+```
+
+```{r}
+dta_ready <- qs::qread("data/train/baseline_ph.qs")
+```
+
+With the same approach in [@sec-base-vis], this section also combines the features engineered in [@sec-feature-engineering] and the label set in [@sec-label-processing], resulting in an `r nrow(dta_ready)`-record training set. Linear Regression and Random Forest Regression are again two explainable candidates for models.
+
+```{python, warning = FALSE, echo = FALSE, output = FALSE}
+import pandas as pd
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LinearRegression
+
+rfr_model = RandomForestRegressor()
+lr_model = LinearRegression()
+
+X = r.dta_ready.loc[:, ["water", "las", "naoh", "sles1", "capb"]]
+y = r.dta_ready["label"]
+```
+
+```{python, warning = FALSE, echo = FALSE, output = FALSE}
+from sklearn.model_selection import train_test_split
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=1)
+
+rfr_model.fit(X_train, y_train)
+rfr_r_square = rfr_model.score(X_test, y_test)
+
+lr_model.fit(X_train, y_train)
+lr_r_square = lr_model.score(X_test, y_test)
+```
+
+Model| R square
+---|---:
+Linear Regression| `{r} reticulate::py$lr_r_square`
+Random Forest Regressor| `{r} reticulate::py$rfr_r_square`
+
+: Performance of pH baseline models {.striped .hover #tbl-ph-baseline-performance}
+
+```{python}
+rfr_predict = rfr_model.predict(X_test)
+lr_predict = lr_model.predict(X_test)
+```
+
+```{python, eval = FALSE}
+import pickle
+
+f = open("data/models/baseline_ph_randomforest.pkl", "wb")
+pickle.dump(rfr_model, f)
+f.close()
+
+f = open("data/models/baseline_ph_linear.pkl", "wb")
+pickle.dump(lr_model, f)
+f.close()
+```
+
+```{r}
+#| layout-ncol: 2
+#| layout-nrow: 1
+#| fig-cap: Predicted value and truth value for baseline ph models
+#| fig-subcap: 
+#| - Random Forest Regressor 
+#| - Linear Regression
+#| label: fig-predict-truth-baseline-ph
+#| fig-pos: "htbp"
+rfr_compare <- data.table::data.table(
+  predicted_value = reticulate::py$rfr_predict,
+  truth_value = reticulate::py$y_test
+)
+fig_rfr <- ggplot2::ggplot(data = rfr_compare, mapping = ggplot2::aes(x = predicted_value, y = truth_value)) +
+  ggplot2::geom_point() + ggplot2::labs(x = "Predicted value", y = "Truth value") +
+  ggplot2::theme_bw()
+plot(fig_rfr)
+lr_compare <- data.table::data.table(
+  predicted_value = reticulate::py$lr_predict,
+  truth_value = reticulate::py$y_test
+)
+fig_lr <- ggplot2::ggplot(data = lr_compare, mapping = ggplot2::aes(predicted_value, y = truth_value)) +
+  ggplot2::geom_point() + ggplot2::labs(x = "Predicted value", y = "Truth value") +
+  ggplot2::theme_bw()
+plot(fig_lr)
+```
+
+[@fig-predict-truth-baseline-ph-1] shows the performance of the Random Forest Regression model. We can detect there are four clusters in the chart. Three big round clusters are located at the bottom and the middle, meanwhile there is an outlier at the top right of the figure. [@fig-predict-truth-baseline-ph-2], however, is hard to detect any area when most of the point is located in a big circle at the center of the chart. Others scatter around the central one. There is also an outlier at the top of [@fig-predict-truth-baseline-ph-2] but the Linear Regression model does not predict correctly this batch.
+
+## Model predictions explanation {#sec-baseline-interpretation}
+
+After models are built in [@sec-baseline; @sec-shap-models], in this section, we investigate the meaning of model predictions thanks to the SHAP value. Besides learning the insight behind model predictions, we will try to improve the performance based on the knowledge extracted. The approach we choose consists of three steps as follows.
+
+Using SHAP to discuss the importance of each feature:
+
+- For all data points
+- For the accurately predicted data points
+- For the wrongly predicted data points
+
+Note that considered data points are in the test set. We begin with the baseline models of viscosity in [@sec-base-vis] whose results are interesting since two types of data predictions can be easily detected in [@fig-predict-truth-baseline-vis-3; @fig-predict-truth-baseline-vis-4]. This section hopefully answers the question of why.
+
+```{r}
+X_test <- qs::qread("data/analysis/test_set_baseline_vis.qs")
+y_test <- qs::qread("data/analysis/test_label_baseline_vis.qs")
+shared_outlier <- qs::qread("data/analysis/shared_outlier_index_baseline_vis.qs")
+```
+
+```{python, echo = FALSE, output = FALSE}
+import pickle
+
+f = open("data/models/baseline_vis_randomforest.pkl", "rb")
+rfr_model = pickle.load(f)
+f.close()
+
+f = open("data/models/baseline_vis_linear.pkl", "rb")
+lr_model = pickle.load(f)
+f.close()
+
+
+from IPython.display import display
+
+from shap import Explainer, partial_dependence_plot, force_plot, initjs, dependence_plot
+from shap.plots import beeswarm, waterfall, force, heatmap
+
+import matplotlib.pyplot as plt
+
+rfr_explainer = Explainer(rfr_model.predict, r.X_test)
+rfr_explanation = rfr_explainer(r.X_test)
+
+lr_explainer = Explainer(lr_model, r.X_test)
+lr_explaination = lr_explainer(r.X_test)
+```
+
+
+```{python}
+#| layout-nrow: 2
+#| label: fig-shap-baseline-vis-overall
+#| fig-cap: SHAP Summary plot for baseline viscosity
+#| fig-subcap: 
+#| - Random Forest Regression
+#| - Linear Regression
+#| fig-pos: "htbp"
+beeswarm(rfr_explanation)
+beeswarm(lr_explaination)
+```
+
+
+[@fig-shap-baseline-vis-overall] depicts the summary of two baseline viscosity models built in the above section. The feature *press*, or *the pressure of pipes in the circulation system* contributes the most. In the Linear Regression model, the importance of the second feature *temp* which is the same as in the Random Forest Regression model accounts for more impact. Meanwhile, the *temperature of the main mixer* has relatively the same effect as the features of *speed* and *weight*. Based on the color of the figure, we can claim that the set of *press*, *temp*, and *speed* have a positive correlation with the model outputs. However, the larger the weight of the main mixer, the smaller the value of the prediction that models return. In this aspect, both of the models agree with each other. 
+
+Another notice is that in [@fig-shap-baseline-vis-overall-1], the color belonging to points is mixed and is not separated. Unlike the competitor, the amount of mixed color in [@fig-shap-baseline-vis-overall-2] is not much and most of the points are located on either side of the central axis. To be more certain the more disengagements the points whose values are high and the lower ones, the worse performance the model is, we investigate two different subsets, one with the points which models are correctly predicted, and one with the points confused the models. Note that in [@fig-shap-baseline-vis-overall-15], a data point is considered wrongly predicted if the error is more than $15\%$ of the according label.
+
+```{python}
+#| layout-nrow: 2
+#| layout-ncol: 2
+#| label: fig-shap-baseline-vis-overall-15
+#| fig-cap: SHAP Summary plot for baseline viscosity, accurately predicted points
+#| fig-subcap: 
+#| - Random Forest, accurately predicted
+#| - Linear Regression, accurately predicted
+#| - Random Forest, wrongly predicted
+#| - Linear Regression, wrongly predicted
+#| fig-pos: "htbp"
+rfr_error_percent_mask = abs((rfr_model.predict(r.X_test) - r.y_test) / r.y_test) * 100 < 15
+lr_error_percent_mask = abs((lr_model.predict(r.X_test) - r.y_test) / r.y_test) * 100 < 15
+beeswarm(rfr_explanation[rfr_error_percent_mask, :])
+beeswarm(lr_explaination[lr_error_percent_mask, :])
+beeswarm(rfr_explanation[~rfr_error_percent_mask, :])
+beeswarm(lr_explaination[~lr_error_percent_mask, :])
+```
+
+Based on [@fig-shap-baseline-vis-overall-15], there are very few differences between the plot of feature importance for the linear model in both cases, either accurately or wrongly predicted. This can be a result of the simplicity of Linear Regression in which the feature coefficients are fixed after the model is trained. In the case of Random Forest, things are getting harder when the differences are easily detected. Points confusing the Random Forest model witness the change in the order of feature importance where the *temperature of the main mixer* overcomes the *press* to be the most influential one.
+
+```{python}
+#| label: fig-shap-baseline-vis-randomforest-press-temp
+#| fig-cap: SHAP Interaction values of Press and Temp
+#| fig-pos: "htbp"
+dependence_plot("press", rfr_explanation.values, r.X_test, interaction_index="temp")
+```
+
+Deep dive into the interaction between two key features *press* and *temp*, we plot [@fig-shap-baseline-vis-randomforest-press-temp] in which the value of feature *press* is the x-axis and the feature of SHAP value for the feature *press* is the y-axis. The first impression is that when the press is lower than around $1.25$, the *temp* helps increase the predicted value. When the value of *pressure* is above $1.5$, the *temp* constrastly reduces the predicted value of viscosity. We also notice some points do not follow that logic and have a hypothesis that when these cases are removed, the overall performance of the Random Forest model will increase.
+
+To sum up, we conclude the following insights from the above analysis:
+
+- The feature importance ranking of Linear Regression is consistent throughout the dataset.
+- High value of *press*, *temp*, and *speed* increase the predicted viscosity.
+- High value of *weight* decreases the value of the prediction.
+- Overall, the order of feature importance is *press*, *temp*, *speed*, and *weight*.
+- In the cases where the Random Forest Regression does not predict correctly, the impact of *temp* is higher than the one of *press*.
+
+
+```{r}
+X_test <- qs::qread("data/analysis/test_set_baseline_ph.qs")
+y_test <- qs::qread("data/analysis/test_label_baseline_ph.qs")
+```
+
+```{python, echo = FALSE, output = FALSE}
+import pickle
+
+f = open("data/models/baseline_ph_randomforest.pkl", "rb")
+rfr_model = pickle.load(f)
+f.close()
+
+f = open("data/models/baseline_ph_linear.pkl", "rb")
+lr_model = pickle.load(f)
+f.close()
+
+from IPython.display import display
+
+from shap import LinearExplainer, Explainer, partial_dependence_plot, force_plot, initjs, dependence_plot, summary_plot
+from shap.plots import beeswarm, waterfall, force, heatmap
+
+import matplotlib.pyplot as plt
+
+initjs()
+
+rfr_explainer = Explainer(rfr_model)
+rfr_explanation = rfr_explainer(r.X_test)
+
+lr_explainer = Explainer(lr_model, r.X_test)
+lr_explaination = lr_explainer(r.X_test)
+```
+
+Moving next to the section for the remaining quality criteria, the baseline model of pH has more features than the viscosity one. However, the characteristics of features used to predict the value of pH are relatively similar since all of the features are the amount of material flushed to the main mixer before being mixed. The factor that distinguishes the features is the nature of the material. We will explore more after starting with the overall view in [@fig-shap-baseline-ph-overall].
+
+```{python}
+#| layout-nrow: 2
+#| label: fig-shap-baseline-ph-overall
+#| fig-cap: SHAP Summary plot for baseline pH
+#| fig-subcap: 
+#| - Random Forest
+#| - Linear Regression
+#| fig-pos: "htbp"
+#| fig-height: 10
+beeswarm(rfr_explanation)
+beeswarm(lr_explaination)
+```
+
+[@fig-shap-baseline-ph-overall] shows a strong disagreement regarding the feature importance ranking between the Random Forest model and the Linear Regression one on the same testing dataset. *LAS* and *NaOH* surprisingly are only in the third and fifth position, respectively, for both models, despite these materials' nature of having a greater effect on the pH. The *amount of water* used in the manufacturing of batches is rated as the most impactful feature by the Random Forest. Meanwhile, the Linear Regression ranks the *amount of SLES* first and *water* in the fourth position. On the other hand, *CapB* moves from the rank fourth in the Random Forest model to the second in Linear Regression one. 
+
+We expected that the materials whose pH are neutral will have less impact than *LAS* and *NaOH*, which is not the case here. However, the astonishing finding is the way *water* influences the model of Random Forest Regression. We can see in [@fig-shap-baseline-ph-overall-1], that the distribution of points for the feature *water* says that the smaller the amount of water is, the higher the value of the batch's pH. Meanwhile, batches in which the volume of *water* is high witness no impact on the pH coming from the water.
+
+The directions of the feature impacts are relatively the same for both Random Forest and Linear Regression models, except for *water* and *NaOH*. More *SLES* means the pH will drop and the same can be said for *LAS* and *CapB*. *NaOH* increases the pH in the Linear Regression but receives mixed performance in the case of the Random Forest model. We can state that the explanation for the Linear Regression model is more aligned with the material nature.
+
+```{python}
+#| layout-nrow: 2
+#| layout-ncol: 2
+#| label: fig-shap-baseline-ph-2-percent
+#| fig-cap: SHAP Summary plot for baseline pH, accurately predicted points
+#| fig-subcap: 
+#| - Random Forest, accurately predicted
+#| - Linear Regression, accurately predicted
+#| - Random Forest, wrongly predicted
+#| - Linear Regression, wrongly predicted
+#| fig-pos: "htbp"
+rfr_error_percent_mask = abs((rfr_model.predict(r.X_test) - r.y_test) / r.y_test) * 100 < 2
+lr_error_percent_mask = abs((lr_model.predict(r.X_test) - r.y_test) / r.y_test) * 100 < 2
+beeswarm(rfr_explanation[rfr_error_percent_mask, :])
+beeswarm(lr_explaination[lr_error_percent_mask, :])
+beeswarm(rfr_explanation[~rfr_error_percent_mask, :])
+beeswarm(lr_explaination[~lr_error_percent_mask, :])
+```
+
+We also draw [@fig-shap-baseline-ph-2-percent] to discuss the difference of feature importances between the data points accurately and wrongly predicted. Since the magnitude of pH is much smaller than viscosity, we choose the value of $2\%$ as a threshold for determining the correctness of the predictions. No real difference detected between [@fig-shap-baseline-ph-2-percent-1; @fig-shap-baseline-ph-2-percent-3] and [@fig-shap-baseline-ph-2-percent-2; @fig-shap-baseline-ph-2-percent-4] leads us to the hypothesis that the fact models predict rightly or not does not depend on the exceptional cases of data points, but is because of the dataset used in the process of making the ML models.
+
+:::{.callout-important}
+Plot the dependence plot for *water* and *NaOH* of the Random Forest model and investigate.
+:::
+
+## Models with SHAP-based feature selection {#sec-shap-models}
+
+:::{.callout-note}
+Establish a feature selection mechanism with SHAP
+
+- Initiate a model with all features
+- Ranking the features with SHAP
+- Two different approaches
+  - Select subsets of 10%, 15%, 25%, 50%, 80% original set.
+  - A loop of getting an 80% set of features until the performance does not go any higher
+:::
+
+```{r}
+library(data.table)
+library(magrittr)
+df_features <- qs::qread("data/train/all_features.qs")
+```
+
+In [@sec-feature-liquid; @sec-feature-physical], we have completed the feature engineering process, resulting in a data set of `r nrow(df_features)`. `r length(colnames(df_features))` features are presented and will be used to establish the second set of ML models in which the SHAP-based feature selection mechanism is deployed, discussed in [@sec-shap-feature-selection]. Also, the baseline models of pH and viscosity proved that the Random Forest Regression architecture performs better than the Linear Regression. Therefore, we only consider constructing the Random Forest Regression ones in the study.
+
+To be more specific, the flow of the mechanism is stated below:
+
+1. Initiate models with all features presented.
+2. Select subsets of features based on the ranking of the SHAP value by recursively filtering $50\%$ sets of features until the number of features is too low to get halves.
+
+Note that, to prove the efficiency of the feature selection mechanism, a new Random Forest Regression model is built every time the features are subsetted. The train and test set are split at the beginning of the process and kept unchanged throughout the experiment. Only the features or the columns of the datasets are changed. The experiment went well in our opinion. Further analysis is provided below.
+
+
+```{r, eval = FALSE}
+df_label_ph <- qs::qread("data/dt_label_pH.qs")
+df_label_vis <- qs::qread("data/dt_label_vis.qs")
+
+df_label_ph$batch_name <- stringi::stri_replace_all_fixed(df_label_ph$batch, pattern = "M", replacement = "") |> as.numeric()
+df_label_vis$batch_name <- stringi::stri_replace_all_regex(df_label_vis$batch, pattern = "[Mm]", replacement = "") |> as.numeric()
+
+df_train_ph <- merge(df_features, df_label_ph[, .(batch_name, label)], all = FALSE, by = "batch_name")
+df_train_vis <- merge(df_features, df_label_vis[, .(batch_name, label)], all = FALSE, by = "batch_name")
+
+v_cols_ph <- colnames(df_train_ph)[!colnames(df_train_ph) %in% c("batch_name", "start", "end", "duration")]
+v_cols_vis <- colnames(df_train_vis)[!colnames(df_train_vis) %in% c("batch_name", "start", "end", "duration")]
+
+df_train_ph[, ..v_cols_ph] |> qs::qsave("data/train/features_ph.qs")
+df_train_vis[, ..v_cols_vis] |> qs::qsave("data/train/features_vis.qs")
+```
+
+```{python, eval = FALSE}
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.preprocessing import StandardScaler
+from shap import Explainer
+import numpy as np
+import pandas as pd
+import pickle
+```
+
+```{r}
+features_ph <- qs::qread("data/train/features_ph.qs")
+```
+
+
+```{python, eval = FALSE}
+X = r.features_ph.iloc[:, :-1]
+X_train, X_test, y_train, y_test = train_test_split(
+  X,
+  r.features_ph["label"],
+  test_size=0.3, random_state=1
+)
+l_result = dict()
+i = 0
+```
+
+
+```{python, eval = FALSE}
+version = "v" + str(i)
+print(version)
+model = RandomForestRegressor(random_state=19)
+model.fit(X_train, y_train)
+score = model.score(X_test, y_test)
+print(score)
+
+f = open("data/shap_models_ph/models/{}.pkl".format(version), "wb")
+pickle.dump(model, f)
+f.close()
+
+explainer = Explainer(model)
+explanation = explainer(X_test)
+
+f = open("data/shap_models_ph/explanations/{}.pkl".format(version), "wb")
+pickle.dump(explanation, f)
+f.close()
+
+shap_vals = np.abs(explanation.values).mean(0)
+feature_importance = pd.DataFrame(list(zip(X_train.columns, shap_vals)), columns=['col_name','feature_importance_vals'])
+feature_importance.sort_values(by=['feature_importance_vals'], ascending=False,inplace=True)
+
+print(feature_importance.head(10))
+print(feature_importance.head(round(feature_importance.shape[0] * 0.5))["col_name"])
+new_features_idx = feature_importance.head(round(feature_importance.shape[0] * 0.5))["col_name"].index.to_numpy()
+print(feature_importance.loc[new_features_idx, "col_name"])
+
+f = open("data/shap_models_ph/features_subset/{}.pkl".format(version), "wb")
+pickle.dump(new_features_idx, f)
+f.close()
+
+l_result[version] = {
+  "score": score,
+  "train_set": X_train,
+  "test_set": X_test,
+  "feature_importance": feature_importance,
+  "new_features_idx": new_features_idx
+}
+
+X_train = X_train.iloc[:, new_features_idx]
+X_test = X_test.iloc[:, new_features_idx]
+i += 1
+```
+
+```{python, eval = FALSE}
+l_result["v0"]["score"]
+l_result["v1"]["score"]
+l_result["v2"]["score"]
+l_result["v3"]["score"]
+
+f = open("data/shap_models_ph/result.pkl", "wb")
+pickle.dump(l_result, f)
+f.close()
+```
+
+
+```{python}
+import pickle
+f = open("data/shap_models_ph/result.pkl", "rb")
+l_result = pickle.load(f)
+f.close()
+```
+
+
+```{r}
+l_result <- reticulate::py$l_result
+
+dta_feature_importance <- data.table::data.table(
+  iteration = character(),
+  feature = character(),
+  feature_importance = numeric()
+)
+l_feature_importance <- lapply(seq(from = 0, to = length(l_result)), function(index) {
+  version <- sprintf("v%s", index)
+  if (is.null(l_result[[version]]$feature_importance)) return(NULL)
+
+  dta <- data.table::data.table(reticulate::py_to_r(l_result[[version]]$feature_importance))
+  dta[, iteration := (version)]
+  
+  val_performance <- l_result[[version]]$score
+  dta[, performance := (val_performance)]
+  
+  dta
+})
+
+dta_feature_importance <- data.table::rbindlist(l_feature_importance, use.names = TRUE, fill = TRUE)
+```
+
+```{r}
+#| tbl-cap: Performance of Random Forest pH models
+#| label: tbl-shap-ph
+knitr::kable(
+  dta_feature_importance[, .(iteration, performance)] |>
+  unique() |>
+  data.table::setnames(old = "iteration", new = "Iteration") |>
+  data.table::setnames(old = "performance", new = "R-squared")
+)
+```
+
+First, [@tbl-shap-ph] shows us the improvement of models in terms of performance over the baseline one in [@sec-base-ph]. The performance of pH models falls into the range of $0.717$ or $71.7\%$. However, the changes in the feature set do not have a big impact on the overall accuracy. Although, the processing time is greatly reduced corresponding to the size of the features set. Overall, in the case where the training dataset is bigger on either axis, the performance of achieved models is better than the baseline. 
+
+```{r}
+#| label: fig-shap-ph-overview
+#| fig-cap: Feature importances over iterations, above 0.015 only
+#| fig-pos: "htbp"
+fig_ph <- ggplot2::ggplot(data = dta_feature_importance[feature_importance_vals > 0.015], 
+    mapping = ggplot2::aes(x = iteration, group = col_name)
+  ) +
+  ggplot2::geom_line(mapping = ggplot2::aes(y = feature_importance_vals, color = col_name), show.legend = FALSE) +
+  ggplot2::geom_point(mapping = ggplot2::aes(y = feature_importance_vals, color = col_name), show.legend = FALSE) +
+  ggplot2::geom_label(mapping = ggplot2::aes(y = feature_importance_vals,label = col_name), 
+    data = dta_feature_importance[iteration == "v3"], nudge_x = 0.15
+  ) +
+  ggplot2::theme_bw()
+
+plot(fig_ph)
+```
+
+Next, we investigate the importance of features ordered by their SHAP values. The purpose is to see if the selected features are reasonable and aligned with the common sense. [@fig-shap-ph-overview] depicts the impact of features through experiments. Astonishingly, the feature `las_main` ranks one in the table despite having a mixed performance in [@sec-baseline-interpretation]. `las_main` leaves the rest of the features far behind, which is understandable since the nature of the chemical. The second one that is also related to the material *LAS* is the mean speed of flushing the material into the main mixer, namely `flow_las`. Another chemical whose nature affects the value of pH is in the top five as well, *NaOH*, represented by the feature `naoh_main`. To be more specific, the feature importance of the best pH model is stated below:
+
+```{r}
+#| tbl-cap: Feature importance of the final pH model
+knitr::kable(reticulate::py_to_r(l_result$v3$feature_importance), row.names = FALSE)
+```
+
+We apply the same approach to the viscosity models. That is to create an initial version and then recursively eliminate less-important features.
+
+```{python, eval = FALSE}
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.preprocessing import StandardScaler
+from shap import Explainer
+import numpy as np
+import pandas as pd
+import pickle
+```
+
+```{r}
+features_vis <- qs::qread("data/train/features_vis.qs")
+```
+
+```{python, eval = FALSE}
+X = r.features_vis.iloc[:, :-1]
+X_train, X_test, y_train, y_test = train_test_split(
+  X,
+  r.features_vis["label"],
+  test_size=0.3, random_state=1
+)
+l_result = dict()
+i = 0
+```
+
+```{python, eval = FALSE}
+version = "v" + str(i)
+print(version)
+
+model = RandomForestRegressor(random_state=19)
+model.fit(X_train, y_train)
+score = model.score(X_test, y_test)
+print(score)
+
+f = open("data/shap_models_vis/models/{}.pkl".format(version), "wb")
+pickle.dump(model, f)
+f.close()
+
+explainer = Explainer(model)
+explanation = explainer(X_test)
+
+f = open("data/shap_models_vis/explanations/{}.pkl".format(version), "wb")
+pickle.dump(explanation, f)
+f.close()
+
+shap_vals = np.abs(explanation.values).mean(0)
+feature_importance = pd.DataFrame(list(zip(X_train.columns, shap_vals)), columns=['col_name','feature_importance_vals'])
+feature_importance.sort_values(by=['feature_importance_vals'], ascending=False,inplace=True)
+
+print(feature_importance.head(10))
+print(feature_importance.head(round(feature_importance.shape[0] * 0.5))["col_name"])
+new_features_idx = feature_importance.head(round(feature_importance.shape[0] * 0.5))["col_name"].index.to_numpy()
+print(feature_importance.loc[new_features_idx, "col_name"])
+
+f = open("data/shap_models_vis/features_subset/{}.pkl".format(version), "wb")
+pickle.dump(new_features_idx, f)
+f.close()
+
+l_result[version] = {
+  "score": score,
+  "train_set": X_train,
+  "test_set": X_test,
+  "feature_importance": feature_importance,
+  "new_features_idx": new_features_idx
+}
+
+X_train = X_train.iloc[:, new_features_idx]
+X_test = X_test.iloc[:, new_features_idx]
+i += 1
+```
+
+```{python, eval = FALSE}
+l_result["v0"]["score"]
+l_result["v1"]["score"]
+l_result["v2"]["score"]
+l_result["v3"]["score"]
+
+f = open("data/shap_models_vis/result.pkl", "wb")
+pickle.dump(l_result, f)
+f.close()
+```
+
+```{python}
+import pickle
+f = open("data/shap_models_vis/result.pkl", "rb")
+l_result = pickle.load(f)
+f.close()
+```
+
+```{r}
+l_result <- reticulate::py$l_result
+
+dta_feature_importance <- data.table::data.table(
+  iteration = character(),
+  feature = character(),
+  feature_importance = numeric()
+)
+l_feature_importance <- lapply(seq(from = 0, to = length(l_result)), function(index) {
+  version <- sprintf("v%s", index)
+  if (is.null(l_result[[version]]$feature_importance)) return(NULL)
+
+  dta <- data.table::data.table(reticulate::py_to_r(l_result[[version]]$feature_importance))
+  dta[, iteration := (version)]
+  
+  val_performance <- l_result[[version]]$score
+  dta[, performance := (val_performance)]
+  
+  dta
+})
+
+dta_feature_importance <- data.table::rbindlist(l_feature_importance, use.names = TRUE, fill = TRUE)
+```
+
+```{r}
+#| tbl-cap: Performance of Random Forest pH models
+#| label: tbl-shap-vis
+knitr::kable(
+  dta_feature_importance[, .(iteration, performance)] |>
+  unique() |>
+  data.table::setnames(old = "iteration", new = "Iteration") |>
+  data.table::setnames(old = "performance", new = "R-squared")
+)
+```
+
+The viscosity models in the experiment perform much better compared to the baseline model, with the detailed performance report shown in [@tbl-shap-vis]. The best model achieved the *R-squared* of $89.4\%$. However, the insight is that there is almost no difference regarding models' accuracy between different versions is still true for viscosity.
+
+```{r}
+#| label: fig-shap-vis-overview
+#| fig-cap: Feature importances over iterations, above 50 only
+#| fig-pos: "htbp"
+fig_vis <- ggplot2::ggplot(data = dta_feature_importance[feature_importance_vals > 10], 
+    mapping = ggplot2::aes(x = iteration, group = col_name)
+  ) +
+  ggplot2::geom_line(mapping = ggplot2::aes(y = feature_importance_vals, color = col_name), show.legend = FALSE) +
+  ggplot2::geom_point(mapping = ggplot2::aes(y = feature_importance_vals, color = col_name), show.legend = FALSE) +
+  ggplot2::geom_label(mapping = ggplot2::aes(y = feature_importance_vals,label = col_name), 
+    data = dta_feature_importance[iteration == "v3"], nudge_x = 0.15
+  ) +
+  ggplot2::theme_bw()
+
+plot(fig_vis)
+```
+
+In terms of the SHAP value ranking table, the *amount of water* dosed in the batch, namely `water_main`, contributes the most. This can be explained by the fact that the more water added, the more dilute the chemical is. Two other major materials, which are *LAS* and *NaOH*, also rank highly among the most impactful features. We notice that all the features presented in the baseline version discussed in [@sec-base-vis] are all missing in [@fig-shap-vis-overview]. The *pressure of the circulation pipe* and the *speed of the circulation pump* are replaced by the new feature, *the speed of the agitator* in the first 5 minutes. The *temperature of the main mixer* is also found as expected from the result in [@sec-baseline-interpretation].
+
+```{r}
+#| tbl-cap: Feature importance of the final viscosity model
+knitr::kable(reticulate::py_to_r(l_result$v3$feature_importance), row.names = FALSE)
+```
+
+In this section, we have completed the main part of the study. A feature engineering process contains 53 sets of time series and turns them into useful features that have already proved themselves in the experiment above. Each feature has its characteristics and different approach to mining. The size of the time series also raises a challenge in finding a suitable algorithm, with most of the raw datasets having about 9 million. It takes effort as well to transform the manually managed workbook of batches' quality check results into a well-formatted label set for ML training. The main contribution of the study includes the feature engineering part and the application of explainable artificial intelligence to a real-life problem. The baseline models as well as their competitors are explained and interpreted using the SHAP value. Following up on the interpretability, a SHAP-based feature selection mechanism is deployed to identify the most important features. The resulting insights are thankfully aligned with the domain knowledge. However, the models' performance is not enhanced much thanks to the proposed mechanism despite the processing time being reduced and the impactful factors being more transparent. We come to the end of the experiment.
+
+The approach remains improvable, with many aspects that can be further researched. We discuss the future work in the next chapter.

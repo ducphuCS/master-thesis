@@ -1,0 +1,1978 @@
+# Methodology
+
+```{r}
+library(data.table)
+library(magrittr)
+```
+
+This section will discuss how we transform the raw data, mostly in the format of time series, into useable and meaningful features. These features will be the main character in the following [@sec-result]. Some of the algorithms resulting from this section also come in handy in the deployment phase, joining in the phase to pre-process the new inputs for model inference.
+
+The layout of this section is listed below:
+
+-   ***Label preprocessing***. Labels are validated and include the information about batches. The datasets at the end of this section are the targets for training models.
+-   ***Feature processing***. Next, this section describes how we cut the data from machines and devices into smaller parts, identified by the batch name.
+-   ***Feature engineering***. Finally, algorithms are introduced in this section to transform the *batches bound* time series to features.
+
+We will start the chapter with the introduction of our data. The dataset is in the raw format. $53$ different dataset is gathered from different machines installed in many scattered across the processing line. Each dataset is a time series whose job is to record phases in the product recipe or to demonstrate the status of the system. The designated purpose of these signals is to allow the operators to control the situation.
+
+We have access to retrieve information on various types of instruments such as the flowmeter used to dose materials into the main mixer, the condition of the main mixer itself, and the circulation system responsible for guiding the semi-product to go around the stations. In manufacturing, factors that receive attention are usually the weight, the temperature and the speed of different materials and equipment. That is also the case in this study where we focus on the primary and popular data that is available in most factories. 
+
+
+Another input that is usually neglected, however, plays a very unexpectedly important role in the development of an industrial intelligence system. That is the label or the outcome of the problem we are trying to solve, in this case, the quality criteria of the product. To successfully deploy a model, an automatic flow of collecting, cleaning and transforming the ground truth for the models. Unfortunately, the laboratory results that will be used as labels come in the form of an Excel workbook. The main issue is that the format of Excel files for date variables which is the heart of any time series analysis can be too difficult to extract.
+
+## Label preprocessing {#sec-label-processing}
+
+The label which means the results of the quality checking process for each batch is manually recorded in the format of a spreadsheet. This section conducts analysis, validation, and cleaning processes to transform the spreadsheet into a labeled dataset for training.
+
+```{r}
+df <- openxlsx::read.xlsx("dataset/labels.xlsx", sheet = "Sheet2", detectDates = FALSE)
+```
+
+```{r}
+dt <- data.table::data.table(df)
+dt <- dt[, .(TUẦN, Ngày.tháng.năm, Ca, Mixer, Code.dầu, KL.theo.mixer, KL.thực.tế, Nước.rework, Batch, Màu, Mùi, AD, Vis, pH, SG)]
+```
+
+The original dataset consists of `r ncol(df)` columns. Some of them contain non-relevant or non-informative metadata data which will be removed. Since the datasets of machine signals all belong to only mixer 1501, only the label for batches in mixer 1501 should be kept.
+
+```{r}
+dt1501 <- dt[Mixer == 1501, ]
+```
+
+Within the resulting dataset, numerical label fields such as *pH* and *Vis* are kept and will continue to be processed.
+
+### pH {.unnumbered .unlisted}
+
+```{r, warning = FALSE}
+dt.pH <- dt1501$pH %>% suppressWarnings(as.numeric())
+```
+
+The spreadsheet is manually filled in and the format may not be inferred correctly. Hence, converting to the correct format, namely numeric, for these label fields is the first task. In the process, we happen to face `r length(dt.pH[is.na(dt.pH)])` cases that we failed to convert. Investigating these cases, we found that most of the values are missing, accounting for `{r} length(dt.pH[is.na(dt.pH)]) / length(dt.pH) * 100` $\%$ of the cases. The other two are spelling errors.
+
+```{r, warning = FALSE}
+dt.pH <- dt1501[, .(Code.dầu, Nước.rework, Batch, pH)]
+dt.pH[, pH := suppressWarnings(as.numeric(pH))]
+dt.pH <- dt.pH[!is.na(pH), ]
+dt.pH[, Nước.rework := suppressWarnings(as.numeric(Nước.rework))]
+dt.pH[, Batch := stringi::stri_trans_toupper(Batch)]
+colnames(dt.pH) <- c("sku", "amount_rework", "batch", "label")
+dt.pH <- dt.pH[label > 0 & label < 14, ]
+```
+
+The number of records in the dataset for the criteria *pH* is `{r} nrow(dt.pH)`.
+
+The format of value in column **Batch** is important since it is the key to link the labels and the time series that will be used as inputs. Therefore, a validation step is required to ensure the manually recorded name of batches is good to use.
+
+As an internal policy, the Batch name is a string of characters whose format is constant
+
+> YYWWDS'M'MBB
+
+, in which:
+
+-   YY is the year
+-   WW is the week number
+-   D is the day of the week, with Monday having a value of $1$
+-   S is the shift in day
+-   'M' is the letter M, which stands for *mixer*.
+-   M is the identifying code for the mixer
+-   BB is the order of batch in the corresponding shift.
+
+The number of *batch names* that are in correct format is `{r} sum(stringi::stri_detect_regex(dt.pH$Batch, pattern = "[0-9]{6}[Mm][0-9]{3}"))`. It means all the values for this column are ready to use. For consistency, we convert all the lowercase *m* to uppercase.
+
+The meta information already satisfied the requirements. Next, we take a glance at the value of *pH* in the table below
+
+```{r}
+#| label: tbl-summary-pH
+#| tbl-cap: Descriptive analysis for *pH*
+tbl_summary <- summary(dt.pH$label)
+knitr::kable(data.frame(Statistics = names(tbl_summary), Value = as.numeric(tbl_summary)))
+```
+
+```{r}
+#| label: fig-violoin-pH
+#| fig-cap: Distribution of products pH
+#| fig-pos: "htbp"
+#| fig-width: 3
+#| fig-height: 2
+fig_ph <- ggplot2::ggplot(data = dt.pH, mapping = ggplot2::aes(x = "label", y = label)) +
+  ggplot2::geom_violin(fill = "gray") + ggplot2::xlab("pH of products") + ggplot2::ylab("pH") + ggplot2::theme_bw() 
+plot(fig_ph)
+```
+
+```{r}
+data.table::setcolorder(dt.pH, c("label", "batch", "sku", "amount_rework"))
+qs::qsave(x = dt.pH, file = "data/dt_label_pH.qs")
+```
+
+### Viscosity {.unnumbered .unlisted}
+
+```{r, warning = FALSE}
+dt1501_vis <- dt1501[, .(Vis, Batch, Code.dầu, Nước.rework)]
+dt1501_vis[, Vis := as.numeric(Vis)]
+dt1501_vis <- dt1501_vis[!is.na(Vis), ]
+dt1501_vis[, Nước.rework := as.numeric(Nước.rework)]
+colnames(dt1501_vis) <- c("label", "batch", "sku", "amount_rework")
+```
+
+We follow the same approach above for the quality criteria **Viscosity**, or *Vis*, which are to convert the type of data and remove missing values and spelling errors. However, in the case of *viscosity*, thanks to the domain knowledge provided by experts in the industry, we know that the range of the viscosity of different products can vary a lot. Therefore, a more careful approach to the label of viscosity is conducted.
+
+First, we summarize the current situation of column *Vis*, as shown below
+
+```{r}
+#| label: tbl-summary-vis
+#| tbl-cap: Descriptive analysis for *Vis* 
+tbl_summary <- summary(dt1501_vis$label)
+knitr::kable(data.frame(Statistics = names(tbl_summary), Value = as.numeric(tbl_summary)))
+```
+
+As in the [@tbl-summary-vis], we can see that the min value for Vis is $3.18$ and the max is $18253$, which are not possible values of viscosity that the products can achieve. Hence, they may be outliers. To detect the outlier, we visualize the distribution of viscosity value in the following figure.
+
+```{r}
+#| label: fig-box-vis
+#| fig-cap: Distribution of products viscosity
+#| fig-pos: "htbp"
+#| fig-width: 3
+#| fig-height: 2
+fig_vis <- ggplot2::ggplot(data = dt1501_vis[label < 4000, ], mapping = ggplot2::aes(x = "label", y = label)) +
+  ggplot2::geom_violin(fill = "gray") + ggplot2::theme_bw() 
+plot(fig_vis)
+```
+
+Note that, in [@fig-box-vis], we eliminated the values above $4000$, which are impossible based on the descriptive analytics in [@tbl-summary-vis]. The figure depicts that there are two distributions hidden in the distribution of viscosity values. This is because the dataset contains many products that belong to different stock-keeping units (SKUs), around `r length(unique(dt1501_vis$sku))` SKUs found in the dataset. Just like with *AD*, we also calculate the propotion of *batch name* following the correct format, which is `r sum(stringi::stri_detect_regex(dt1501_vis$batch, patter = "[0-9]{6}[Mm][0-9]{3}")) / nrow(dt1501_vis) * 100` $\%$. Another point we notice is the shape of [@fig-violoin-pH] and [@fig-box-vis] are very similar to each other, which indicates that there may be an underlying correlation between these two quality criteria.
+
+```{r}
+dt1501_vis[, Batch := stringi::stri_trans_toupper(batch)]
+qs::qsave(dt1501_vis, "data/dt_label_vis.qs")
+```
+
+## Data preprocessing {#sec-feature-processing}
+
+Every time series contains millions of data points. However, these time series are not so helpful when they stay in their raw format. It is because labels are identified by batches, while the signals describing the context are not. Therefore, the very first time is to split the data into smaller sets correspondingly in the same time window as the labels.
+
+The process can be simplified as:
+
+1.  Find the time windows where the batch and the label belong, namely the begin timestamp and end timestamp
+2.  Filter the inputs in the above time windows
+3.  Preprocess the framed inputs into valueable features, namely the feature engineering process,
+
+Note that the word *valuable* is not quantifiable. More details about the methodology to refine the feature are discussed in [@sec-feature-engineering].
+
+In this section, we describe detailly about the above process and the results from it. Each of the following subsections is dedicated to a time series in the dataset.
+
+### Build batches time windows
+
+In the dataset, each data point in the time series **batch_name** is the name of the batch that was running at that time. Therefore, thanks to this time series, we can identify the beginning and ending of a batch, after cleaning and validating the data.
+
+```{r, cache = FALSE}
+df_batch_name <- data.table::fread("./dataset/1501/batch_name.csv")
+```
+
+Just like other time series, the **batch_name** has 3 columns `{r} names(df_batch_name)`, standing for timestamp, tag name, and value, respectively.
+
+| Column | Data type                           |
+|--------|-------------------------------------|
+| TS     | `{r} class(df_batch_name[, TS])`    |
+| Tag    | `{r} class(df_batch_name[, Tag])`   |
+| Value  | `{r} class(df_batch_name[, Value])` |
+
+: Data type of time series *batch_name*
+
+```{r, cache = TRUE}
+is_correct_format <- stringi::stri_detect_regex(as.character(df_batch_name$Value), pattern = "^[0-9]{9}$")
+df_incorrect_format <- df_batch_name[!is_correct_format, ]
+```
+
+Using package *stringi* in [@gagolewski_stringi_2022] to detect the wrong format value, discussed in [@sec-label-processing], we find `{r} nrow(df_incorrect_format)` rows which has an incorrect format. For example, the values that do not follow the pattern are `{r} unique(df_batch_name[!is_correct_format, Value])`. We remove them from the time series.
+
+```{r, cache = TRUE}
+df_correct_format <- df_batch_name[is_correct_format, ]
+```
+
+#### Filter the start and end of batches
+
+After preprocessing the time series, we can get the beginning and the end of the batch by filtering the data points belonging to the batch and get the min, and max values. However, this approach may lead to a situation when there is some noise in the time series.
+
+To be more specific, if there is an error data point, whose timestamp is larger than the batch its value represents. Then the time window of the batch itself will be incorrect since the max value of timestampe will return the error data point.
+
+Therefore, to maintain the order of the time series, we identify the starting point and the end of the batch by
+
+1.  Browse through the time series
+2.  Check if the value of the current timestamp is the same as the previous one and the one after it.
+
+-   If *True*, remove the data point.
+-   Otherwise, keep the data point and go to the next one.
+
+```{r, cache = TRUE}
+is_same_lag <- as.logical(data.table::nafill(as.numeric(df_correct_format$Value == data.table::shift(df_correct_format$Value), type = "lag"), fill = 0))
+is_same_lead <- as.logical(data.table::nafill(as.numeric(df_correct_format$Value == data.table::shift(df_correct_format$Value, type = "lead")), fill = 0))
+df_trimmed <- df_correct_format[!(is_same_lag & is_same_lead), .(TS, Value)]
+```
+
+The number of rows after applying the above algorithm is `{r} nrow(df_trimmed)`, which is an odd number. Therefore, validation is required to ensure the *Timestamp* and the *Batch Name* are compatible.
+
+#### Validate the start and end of batches
+
+In the above section, we determined the number of rows in the resulting data frame should have been an even number since the batches are distinguished by a pair of the starting and endpoint. Therefore, in this section, we conduct an algorithm to identify the abnormal batches.
+
+Batches are labeled abnormal when the **batch name** appears more than two times in the resulting table, following the reason stated above.
+
+```{r}
+counting_appearances <- df_trimmed[, .(count = .N), by = Value]
+```
+
+After aggregating the appearances, the number of **batch name** that appears different from two times is `{r} nrow(counting_appearances[count > 2, ])`. Some of them can be listed as `{r} head(counting_appearances[count > 2, ])$Value`.
+
+We then investigate those outliers.
+
+```{r}
+v_is_abnormal_batches <- counting_appearances[count != 2, ]$Value
+df_abnormal_batches <- df_trimmed[Value %in% v_is_abnormal_batches, ]
+df_remove_candidates <- df_abnormal_batches[Value != data.table::shift(df_abnormal_batches$Value, type = "lag") & Value != data.table::shift(df_abnormal_batches$Value, type = "lead"), ]
+
+df_removed <- df_trimmed[! (TS %in% df_remove_candidates$TS & Value %in% df_remove_candidates$Value), ]
+df_last_candidates <- df_removed[Value != data.table::shift(df_removed$Value, type = "lag") & Value != data.table::shift(df_removed$Value, type = "lead"), ]
+
+df_validated <- df_removed[! (TS %in% df_last_candidates$TS & Value %in% df_last_candidates), ]
+```
+
+The elimination follows these steps:
+
+-   Determine which batches appear other than two times.
+-   Remove data points whose `Value` is not the same as both the previous and the next neighbors.
+
+The validated table has `{r} nrow(df_validated)` rows, all the data points satisfy the condition that either the `Value` of the row is the same as the previous one or the next one (the number of rows not satisfy is `{r} nrow(df_validated[Value != data.table::shift(df_validated$value, type = "lag") & Value != data.table::shift(df_validated$Value, type = "lead"), ])`).
+
+Another needed validation is if the `TS` of the starting point is smaller than the `TS` of the ending point, finding `{r} nrow(df_validated[TS > data.table::shift(df_validated$TS) & mod(.I, 2), ])` rows that do not satisfy the condition.
+
+```{r}
+df_batches <- data.table::data.table(
+  batch_name = df_validated[seq(1, nrow(df_validated), 2), ]$Value,
+  start = df_validated[seq(1, nrow(df_validated), 2), ]$TS,
+  end = df_validated[seq(2,nrow(df_validated), 2), ]$TS
+)
+df_batches[, duration := as.numeric(end - start) / 60]
+```
+
+From the dataset above, we construct a so-called **batches** data frame to store the starting and ending points of batches, indexed by the *batch name*. The duration of the batch can be calculated by the difference between two timestamps. The following table demonstrates the summary of batches duration.
+
+```{r}
+#| label: tbl-summary-duration
+#| tbl-cap: Descriptive analysis of batches duration 
+tbl_duration_sum <- summary(df_batches$duration)
+knitr::kable(data.frame(Statistic = names(tbl_duration_sum), Value = as.numeric(tbl_duration_sum)))
+```
+
+According to the standardized process, the minimum and maximum time for a batch are 15 and 60 minutes, respectively. There are cases in which batches can be lengthened to more than 3 hours. The number of batches whose duration is outside of the domain-defined range is `{r} nrow(df_batches[duration < 15 | duration > 180, ])`. The potential reasons for the outlier are
+
+-   There is an incident that the process has to be paused for a long time.
+-   There are machine errors, manufacturing machine and streaming infrastructure, that lead to incorrect data recording.
+
+```{r}
+df_batches <-df_batches[duration >= 15 & duration <= 180, ]
+```
+
+In this study, we ignore and remove these batches, `{r} nrow(df_batches)` data points remaining.
+
+```{r}
+#| fig-cap: "Distribution of batches duration"
+#| fig-pos: "htbp"
+#| label: fig-batches-duration
+#| fig-width: 3
+#| fig-height: 2
+fig_batches_duration <- ggplot2::ggplot(data = df_batches, mapping = ggplot2::aes(x = "", y = duration)) + 
+  ggplot2::geom_boxplot(varwidth = TRUE, fill = "gray", outlier.colour = "red", outlier.size = .75, outlier.shape = 1) + 
+  ggplot2::labs(title = "Plot of batches duration", x = "Duration", y = "Minutes") +
+  ggplot2::theme_bw()
+plot(fig_batches_duration)
+```
+
+The [@fig-batches-duration] demonstrates the distribution of batch duration. We can see that most of the batches last about 30 to 60 minutes. However, the number of batches that are marked outliers is remarkable. This can be interpreted as the manufacturing process is not stable and has high variance.
+
+This section comes to an end after we receive a data table containing the time window of batches. With `{r} nrow(df_batches)` batches, the next phase is to engineer features by following the steps stated in [@sec-feature-processing].
+
+```{r, output = FALSE}
+qs::qsave(x = df_batches, file = "data/df_batches.qs")
+```
+
+```{r}
+df_batches <- qs::qread("data/df_batches.qs")
+```
+
+### Weight of the main mixer
+
+Continue the data processing phase, the next target is the time series of the weight of the main mixer. This section will use the result from the above one, to filter and validate the data of product volume within batches.
+
+```{r, cache = TRUE}
+df_weight_main <- data.table::fread("dataset/1501/main_mixer_weight_of_main_mixer.csv")
+df_weight_main <- df_weight_main[, .(TS, Value)]
+data.table::setnames(df_weight_main, old = "Value", new = "weight_main")
+```
+
+```{r, cache = TRUE, eval = FALSE}
+l_weight_main <- lapply(seq_len(nrow(df_batches)), function(index) {
+   df <- df_weight_main[TS >= df_batches[index, start] & TS <= df_batches[index, end], ]
+   df[, batch := df_batches[index, batch_name]]
+   return(df)
+ })
+qs::qsave(l_weight_main, "data/df_weight_main_mixer_batch_binded.qs")
+```
+
+```{r, cache = TRUE}
+l_weight_main <- qs::qread("data/df_weight_main_mixer_batch_binded.qs")
+```
+
+```{r}
+#| layout-ncol: 2
+#| fig-pos: "htbp"
+#| fig-cap: An example of filtered main mixer volume
+#| fig-subcap: 
+#| - Batch 230111501
+#| - Batch 230111502
+#| label: fig-weight-main
+fig_weight_main_1 <- ggplot2::ggplot(data = l_weight_main[[1]], mapping = ggplot2::aes(x = TS, y = weight_main)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("Weight of main mixer batch", unique(l_weight_main[[1]]$batch)), x = "Timestamp", y = "Weight of main mixer") +
+  ggplot2::theme_bw()
+
+fig_weight_main_2 <- ggplot2::ggplot(data = l_weight_main[[2]], mapping = ggplot2::aes(x = TS, y = weight_main)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("Weight of main mixer batch", unique(l_weight_main[[2]]$batch)), x = "Timestamp", y = "Weight of main mixer") +
+  ggplot2::theme_bw()
+plot(fig_weight_main_1)
+plot(fig_weight_main_2)
+```
+
+The time series of the volume of the product follows the three phases:
+
+1.  Increasing at the beginning since the materials are dosed into the main mixer.
+2.  Maintaining a level when flushing materials is done and the main task is to mix.
+3.  Decreasing at the end when the batches are done and the semi-products are transferred to the storage tank.
+
+### Temperature of the main mixer
+
+The temperature of the product within the tank is also an important time series. This is because when the materials are dosed and mixed, a chemical reaction happens. Therefore, the temperature often increases at the start of the batches and moves into a stable phase later.
+
+```{r, eval = FALSE}
+df_temp_main <- data.table::fread("dataset/1501/main_mixer_temperature_of_main_mixer.csv")
+df_temp_main <- df_temp_main[!stringi::stri_detect_fixed(Tag, pattern = "input chlor water"), .(TS, Value)]
+data.table::setnames(df_temp_main, old = "Value", new = "temp_main")
+```
+
+```{r, eval = FALSE}
+l_temp_main <- lapply(seq_len(nrow(df_batches)), function(index) {
+   df <- df_temp_main[TS >= df_batches[index, start] & TS <= df_batches[index, end], ]
+   df[, batch := df_batches[index, batch_name]]
+   return(df)
+ })
+qs::qsave(l_temp_main, "data/df_temp_main_mixer_batch_binded.qs")
+```
+
+```{r}
+l_temp_main <- qs::qread(file = "data/df_temp_main_mixer_batch_binded.qs")
+```
+
+```{r}
+#| fig-cap: An example of filtered main mixer temperature
+#| fig-subcap:
+#| - Batch 230112504
+#| - Batch 230113503
+#| layout-ncol: 2
+#| label: fig-temp-main
+#| fig-pos: "htbp"
+fig_temp_main_1 <- ggplot2::ggplot(data = l_temp_main[[10]], mapping = ggplot2::aes(x = TS, y = temp_main)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("Temperature of main mixer batch", unique(l_temp_main[[10]]$batch)), x = "Timestamp", y = "Temp of main mixer") +
+  ggplot2::theme_bw()
+
+fig_temp_main_2 <- ggplot2::ggplot(data = l_temp_main[[20]], mapping = ggplot2::aes(x = TS, y = temp_main)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("Temperature of main mixer batch", unique(l_temp_main[[20]]$batch)), x = "Timestamp", y = "Temp of main mixer") +
+  ggplot2::theme_bw()
+plot(fig_temp_main_1)
+plot(fig_temp_main_2)
+```
+
+The [@fig-temp-main] depicts the above logic. However, the period where the main mixer temperature is stable may be different for each batch. More details about how we transform the filtered signal to features are discussed in [@sec-feature-engineering].
+
+### Pressure of main mixer circulation system
+
+The processing line contains multiple stations. The products are kept in the pump and moved around stations through a circulation system. The circulation also takes part in the cooling process for the semi-product. Another role of the circulation system is to make sure the materials are mixed evenly.
+
+According to experts, the pressure of pipes in a main mixer circulation system may hide insights about the viscosity of the product being mixed. The more dense the mixture is, the higher the pressure is.
+
+```{r, eval = FALSE}
+df_press_main <- data.table::fread("dataset/1501/main_mixer_pressure_of_circulation_pump.csv")
+df_press_main <- df_press_main[, .(TS, Value)]
+data.table::setnames(df_press_main, old = "Value", new = "press_main")
+```
+
+```{r, eval = FALSE}
+l_press_main <- lapply(seq_len(nrow(df_batches)), function(index) {
+   df <- df_press_main[TS >= df_batches[index, start] & TS <= df_batches[index, end], ]
+   df[, batch := df_batches[index, batch_name]]
+   return(df)
+ })
+qs::qsave(l_press_main, "data/df_press_main_mixer_batch_binded.qs")
+```
+
+```{r, cache = TRUE}
+l_press_main <- qs::qread("data/df_press_main_mixer_batch_binded.qs")
+```
+
+```{r}
+#| fig-cap: An example of filtered main mixer pipe pressure of circulation system
+#| fig-subcap:
+#| - Batch 230111501
+#| - Batch 230111502
+#| layout-ncol: 2
+#| label: fig-press-main
+#| fig-pos: "htbp"
+fig_press_main_1 <- ggplot2::ggplot(data = l_press_main[[1]], mapping = ggplot2::aes(x = TS, y = press_main)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("Pressure of circulation pipe batch", unique(l_press_main[[1]]$batch)), x = "Timestamp", y = "Circulation system press") +
+  ggplot2::theme_bw()
+
+fig_press_main_2 <- ggplot2::ggplot(data = l_press_main[[2]], mapping = ggplot2::aes(x = TS, y = press_main)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("Pressure of circulation pipe batch", unique(l_press_main[[2]]$batch)), x = "Timestamp", y = "Circulation system press") +
+  ggplot2::theme_bw()
+plot(fig_press_main_1)
+plot(fig_press_main_2)
+```
+
+The values pictured in [@fig-press-main] have phases that can be easily detected. The pressure of the circulation system depends on steps in the manufacturing formulation. For example, when the formulation requires a stronger mix, the values go high. Meanwhile, the values are $0$ when the circulation pump is off. There may be a correlation between the *pressure of the circulation system* and the *speed of the circulation pump*, which we will explore more in [@sec-feature-engineering].
+
+### Speed of main mixer circulation pump
+
+In the above section, we filtered the time series of the pipe pressure in the circulation system of the main mixer. This section will discuss another factor in the mixing process, which is the speed of the pump used in the main mixer circulation system.
+
+```{r}
+df_speed_main <- data.table::fread("dataset/01-done/main_mixer_speed_of_circulation.csv")
+df_speed_main_pump <- data.table::fread("dataset/01-done/main_mixer_speed_of_circulation_pump.csv")
+df_speed_main <- df_speed_main[!stringi::stri_detect_fixed(Tag, pattern = "pump"), .(TS, Value)]
+df_speed_main_pump <- df_speed_main_pump[, .(TS, Value)]
+data.table::setnames(df_speed_main, old = "Value", new = "speed_main")
+data.table::setnames(df_speed_main_pump, old = "Value", new = "speed_pump")
+```
+
+There are time series in the set of machine signals that have the very same name for the *speed of circulation pump*, namely *speed_of_circulation* and *speed_of_circulation_pump*. We analyze these two signals to determine if they represent the same information.
+
+```{r}
+#| fig-cap: Comparision two time-series of circulation pump speed
+#| fig-subcap:
+#| - speed_of_circulation
+#| - speed_of_circulation_pump
+#| layout-ncol: 2
+#| label: fig-compare-speed-main
+df_sample_speed_main <- df_speed_main[TS >= df_batches[5000, start] & TS <= df_batches[5000, end], ]
+df_sample_speed_pump <- df_speed_main_pump[TS >= df_batches[5000, start] & TS <= df_batches[5000, end], ]
+fig_speed_main <- ggplot2::ggplot(data = df_sample_speed_main, mapping = ggplot2::aes(x = TS, y = speed_main)) +
+  ggplot2::geom_line() + ggplot2::theme_bw()
+fig_speed_pump <- ggplot2::ggplot(data = df_sample_speed_pump, mapping = ggplot2::aes(x = TS, y = speed_pump)) +
+  ggplot2::geom_line() + ggplot2::theme_bw()
+plot(fig_speed_main)
+plot(fig_speed_pump)
+```
+
+Even though the time series are different, the *speed_of_circulation* is a newly installed signal and only available from `r min(df_speed_main$TS)`. Therefore, using it as a feature later is not possible. Hence, we discard the time series *speed_of_circulation*.
+
+```{r, eval = FALSE}
+l_speed_main <- lapply(seq_len(nrow(df_batches)), function(index) {
+   df <- df_speed_main_pump[TS >= df_batches[index, start] & TS <= df_batches[index, end], ]
+   df[, batch := df_batches[index, batch_name]]
+   return(df)
+ })
+qs::qsave(l_speed_main, "data/df_speed_main_mixer_batch_binded.qs")
+```
+
+```{r}
+l_speed_main <- qs::qread("data/df_speed_main_mixer_batch_binded.qs")
+```
+
+As we discussed in [@sec-base-vis], these four machine signals we conduct processing above are the key features for the baseline model of predicting viscosity. However, these time series are only pre-processed and still not in the format of features that can be used as model inputs. The [@sec-feature-engineering] will discuss more how we turn these *batches bound* raw information into valuable features.
+
+### The amount of chlorinated water
+
+Chlorinated water is one of the materials accounting for the most proportion in a home care liquid recipe. Therefore, in terms of products's pH. The amount of chlorinated plays a key factor in varying the pH of the general mixture.
+
+```{r, eval = FALSE}
+df_batches <- qs::qread("data/df_batches.qs")
+df_water_main <- data.table::fread("dataset/1501/main_mixer_weight_of_chlor_water_dosing.csv") %>%
+  .[, .(TS, Value)] %>% data.table::setnames(old = "Value", new = "water_main")
+```
+
+```{r, eval = FALSE}
+l_water_main <- lapply(seq_len(nrow(df_batches)), function(index) {
+   df <- df_water_main[TS >= df_batches[index, start] & TS <= df_batches[index, end], ]
+   df[, batch := df_batches[index, batch_name]]
+   df
+ })
+qs::qsave(l_water_main, "data/df_water_main_mixer_batch_binded.qs")
+```
+
+```{r}
+l_water_main <- qs::qread("data/df_water_main_mixer_batch_binded.qs")
+```
+
+```{r}
+#| fig-cap: The amount of chlorinated water used in a batch
+#| fig-subcap:
+#| - Batch 230111501
+#| - Batch 230111502
+#| layout-ncol: 2
+#| label: fig-water-main
+#| fig-pos: "htbp"
+fig_water_main_1 <- ggplot2::ggplot(data = l_water_main[[1]], mapping = ggplot2::aes(x = TS, y = water_main)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("The amount of chlorinated water", unique(l_water_main[[1]]$batch)), x = "Timestamp", y = "Chlorinated water") +
+  ggplot2::theme_bw()
+
+fig_water_main_2 <- ggplot2::ggplot(data = l_water_main[[2]], mapping = ggplot2::aes(x = TS, y = water_main)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("The amount of chlorinated water", unique(l_water_main[[2]]$batch)), x = "Timestamp", y = "Chlorinated water") +
+  ggplot2::theme_bw()
+plot(fig_water_main_1)
+plot(fig_water_main_2)
+```
+
+[@fig-water-main] demonstrates a pattern for the signal of chlorinated water. The value of sensors will reset to $0$, then increase to a setting point. After that, the value is kept stable until the batch control system commands another phase of dosing chlorinated water. Moreover, [@fig-water-main-1] shows us an exception case when chlorinated water is dosed to the main mixer twice. The reason behind this is that the operators are allowed to flush additional water if the first try does not meet the required value of water. However, the amount of the latter dose is relatively small compared to the former. Therefore, later in [@sec-feature-engineering], we will only count the volume of the first dose in batches.
+
+### The amount of liquid materials
+
+Similar to chlorinated water in the section above, many other liquid materials have the same pattern in which values reset to $0$ at the beginning, increase to reach a setting point and then keep stable until the next batch. Some of them can be named Linear-alkylbenzene-sulfonate (LAS), Sodium dioxide (NaOH), Sodium laureth sulfate (SLES), Cocamidopropyl betaine (CAPB), etc. [@fig-dosing-material] gives an example of how the time series belonging to these signals look like.
+
+```{r, eval = FALSE}
+df_las_main <- data.table::fread("dataset/1501/main_mixer_weight_of_las_dosing.csv") %>%
+  .[, .(TS, Value)] %>% data.table::setnames(old = "Value", new = "las_main")
+l_las_main <- lapply(seq_len(nrow(df_batches)), function(index) {
+  df <- df_las_main[TS >= df_batches[index, start] & TS <= df_batches[index, end], ]
+  df[, batch := df_batches[index, batch_name]]
+  df
+})
+qs::qsave(l_las_main, "data/df_las_main_mixer_batch_binded.qs")
+```
+
+```{r, eval = FALSE}
+df_naoh_main <- data.table::fread("dataset/1501/main_mixer_weight_of_naoh_dosing.csv") %>%
+  .[, .(TS, Value)] %>% data.table::setnames(old = "Value", new = "naoh_main")
+l_naoh_main <- lapply(seq_len(nrow(df_batches)), function(index) {
+  df <- df_naoh_main[TS >= df_batches[index, start] & TS <= df_batches[index, end], ]
+  df[, batch := df_batches[index, batch_name]]
+  df
+})
+qs::qsave(l_naoh_main, "data/df_naoh_main_mixer_batch_binded.qs")
+```
+
+```{r, eval = FALSE}
+df_sles1_main <- data.table::fread("dataset/1501/main_mixer_weight_of_sles-1eo_dosing.csv") %>%
+  .[, .(TS, Value)] %>% data.table::setnames(old = "Value", new = "sles1_main")
+l_sles1_main <- lapply(seq_len(nrow(df_batches)), function(index) {
+  df <- df_sles1_main[TS >= df_batches[index, start] & TS <= df_batches[index, end], ]
+  df[, batch := df_batches[index, batch_name]]
+  df
+})
+qs::qsave(l_sles1_main, "data/df_sles1_main_mixer_batch_binded.qs")
+```
+
+```{r, eval = FALSE}
+df_capb_main <- data.table::fread("dataset/1501/dossing_capb.csv") %>%
+  .[, .(TS, Value)] %>% data.table::setnames(old = "Value", new = "capb_main")
+l_capb_main <- lapply(seq_len(nrow(df_batches)), function(index) {
+  df <- df_capb_main[TS >= df_batches[index, start] & TS <= df_batches[index, end], ]
+  df[, batch := df_batches[index, batch_name]]
+  df
+})
+qs::qsave(l_capb_main, "data/df_capb_main_mixer_batch_binded.qs")
+```
+
+```{r}
+#| label: fig-dosing-material
+#| fig-cap: More of dosing materials
+#| fig-subcap: 
+#| - LAS
+#| - Sodium
+#| - SLES
+#| - CapB
+#| layout-ncol: 2
+#| layout-nrow: 2
+#| fig-pos: "htbp"
+l_las_main <- qs::qread("data/df_las_main_mixer_batch_binded.qs")
+l_naoh_main <- qs::qread("data/df_naoh_main_mixer_batch_binded.qs")
+l_sles1_main <- qs::qread("data/df_sles1_main_mixer_batch_binded.qs")
+l_capb_main <- qs::qread("data/df_capb_main_mixer_batch_binded.qs")
+
+
+fig_las_main <- ggplot2::ggplot(data = l_las_main[[1]], mapping = ggplot2::aes(x = TS, y = las_main)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("The amount of LAS in batch", unique(l_las_main[[1]]$batch)), x = "Timestamp", y = "LAS") +
+  ggplot2::theme_bw()
+fig_naoh_main <- ggplot2::ggplot(data = l_naoh_main[[1]], mapping = ggplot2::aes(x = TS, y = naoh_main)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("The amount of NaOH in batch", unique(l_naoh_main[[1]]$batch)), x = "Timestamp", y = "NaOH") +
+  ggplot2::theme_bw()
+fig_sles1_main <- ggplot2::ggplot(data = l_sles1_main[[1]], mapping = ggplot2::aes(x = TS, y = sles1_main)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("The amount of SLES", unique(l_sles1_main[[1]]$batch)), x = "Timestamp", y = "SLES") +
+  ggplot2::theme_bw()
+fig_capb_main <- ggplot2::ggplot(data = l_capb_main[[1]], mapping = ggplot2::aes(x = TS, y = capb_main)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("The amount of CapB", unique(l_capb_main[[1]]$batch)), x = "Timestamp", y = "CapB") +
+  ggplot2::theme_bw()
+
+plot(fig_las_main)
+plot(fig_naoh_main)
+plot(fig_sles1_main)
+plot(fig_capb_main)
+```
+
+### The amount of Dehydol
+
+```{r, eval = FALSE}
+df_batches <- qs::qread("data/df_batches.qs")
+df_dehydol <- data.table::fread("dataset/1501/dehydol_flowmeter.csv") %>%
+  .[, .(TS, Value)] %>% data.table::setnames(old = "Value", new = "dehydol")
+l_dehydol <- lapply(seq_len(nrow(df_batches)), function(index) {
+   df <- df_dehydol[TS >= df_batches[index, start] & TS <= df_batches[index, end], ]
+   df[, batch := df_batches[index, batch_name]]
+   df
+ })
+qs::qsave(l_dehydol, "data/df_dehydol_mixer_batch_binded.qs")
+```
+
+```{r}
+#| fig-cap: The amount of dehydol used in a batch
+#| fig-subcap:
+#| - Batch 230113504
+#| - Batch 230122501
+#| layout-ncol: 2
+#| label: fig-dehydol
+#| fig-pos: "htbp"
+
+l_dehydol <- qs::qread("data/df_dehydol_mixer_batch_binded.qs")
+v_use_dehydol <- lapply(seq_len(length(l_dehydol)), function(index) {
+  if (nrow(l_dehydol[[index]][dehydol < 100, ]) > 0) {
+    return(index)
+  }
+  NULL
+}) |> unlist()
+
+fig_dehydol_1 <- ggplot2::ggplot(data = l_dehydol[[21]], mapping = ggplot2::aes(x = TS, y = dehydol)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("The amount of Dehydol", unique(l_dehydol[[21]]$batch)), x = "Timestamp", y = "Dehydol") +
+  ggplot2::theme_bw()
+plot(fig_dehydol_1)
+
+fig_dehydol_2 <- ggplot2::ggplot(data = l_dehydol[[37]], mapping = ggplot2::aes(x = TS, y = dehydol)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("The amount of Dehydol", unique(l_dehydol[[37]]$batch)), x = "Timestamp", y = "Dehydol") +
+  ggplot2::theme_bw()
+plot(fig_dehydol_2)
+```
+
+*Dehydol* is also a kind of *surfactant* likes *SLES*. In this section, we prepare the data of dosing *Dehydol* to be feature-engineered later. [@fig-dehydol] shows two example batches of using *Dehydol*. However, there are about `r length(v_use_dehydol)` batches that use *Dehydol* as a material.
+
+### The amount of hot water
+
+```{r, eval = FALSE}
+df_batches <- qs::qread("data/df_batches.qs")
+df_hot_water <- data.table::fread("dataset/1501/dosing_hotwater.csv") %>%
+  .[, .(TS, Value)] %>% data.table::setnames(old = "Value", new = "hot_water")
+l_hot_water <- lapply(seq_len(nrow(df_batches)), function(index) {
+   df <- df_hot_water[TS >= df_batches[index, start] & TS <= df_batches[index, end], ]
+   df[, batch := df_batches[index, batch_name]]
+   df
+ })
+qs::qsave(l_hot_water, "data/df_hot_water_mixer_batch_binded.qs")
+```
+
+```{r}
+#| fig-cap: The amount of Hot water used in a batch
+#| fig-subcap:
+#| - Batch 230141501
+#| - Batch 230142507
+#| layout-ncol: 2
+#| label: fig-hot-water
+#| fig-pos: "htbp"
+
+l_hot_water <- qs::qread("data/df_hot_water_mixer_batch_binded.qs")
+v_use_hot_water <- lapply(seq_len(length(l_hot_water)), function(index) {
+  if (nrow(l_hot_water[[index]][hot_water > 100, ]) > 10) {
+    return(index)
+  }
+  NULL
+}) |> unlist()
+
+fig_hot_water_1 <- ggplot2::ggplot(data = l_hot_water[[87]], mapping = ggplot2::aes(x = TS, y = hot_water)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("The amount of Hot water", unique(l_hot_water[[87]]$batch)), x = "Timestamp", y = "Hot water") +
+  ggplot2::theme_bw()
+plot(fig_hot_water_1)
+
+fig_hot_water_2 <- ggplot2::ggplot(data = l_hot_water[[102]], mapping = ggplot2::aes(x = TS, y = hot_water)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("The amount of Hot water", unique(l_hot_water[[102]]$batch)), x = "Timestamp", y = "Hot water") +
+  ggplot2::theme_bw()
+plot(fig_hot_water_2)
+```
+
+The chlorinated water in the above section has siblings, one of whom is *hot water*. *Hot water* is the same kind of water likes chlorinated water, but at a higher temperature. The number of batches using *hot water* additionally is very few, around `r nrow(v_use_hot_water)`. [@fig-hot-water] plots the example in which we see the durations of dosing phases are almost zero resulting in the line being very steep.
+
+### The amount of reworked water {.unnumbered .unlisted}
+
+```{r, eval = FALSE}
+df_batches <- qs::qread("data/df_batches.qs")
+df_rework <- data.table::fread("dataset/1501/dosing_rework.csv") %>%
+  .[, .(TS, Value)] %>% data.table::setnames(old = "Value", new = "rework")
+l_rework <- lapply(seq_len(nrow(df_batches)), function(index) {
+   df <- df_rework[TS >= df_batches[index, start] & TS <= df_batches[index, end], ]
+   df[, batch := df_batches[index, batch_name]]
+   df
+ })
+qs::qsave(l_rework, "data/df_rework_mixer_batch_binded.qs")
+```
+
+```{r}
+#| fig-cap: The amount of reworked water used in a batch
+#| fig-subcap:
+#| - Batch 230111504
+#| - Batch 230112504
+#| layout-ncol: 2
+#| label: fig-rework-water
+#| fig-pos: "htbp"
+l_rework <- qs::qread("data/df_rework_mixer_batch_binded.qs")
+v_use_rework <- lapply(seq_len(length(l_rework)), function(index) {
+  if (nrow(l_rework[[index]][rework < 100, ]) > 5 & nrow(l_rework[[index]][rework > 100, ]) > 5) {
+    return(index)
+  }
+  NULL
+}) |> unlist()
+
+fig_rework_1 <- ggplot2::ggplot(data = l_rework[[4]], mapping = ggplot2::aes(x = TS, y = rework)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("The amount of reworked water", unique(l_rework[[4]]$batch)), x = "Timestamp", y = "Reworked water") +
+  ggplot2::theme_bw()
+plot(fig_rework_1)
+
+fig_rework_2 <- ggplot2::ggplot(data = l_rework[[10]], mapping = ggplot2::aes(x = TS, y = rework)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("The amount of reworked water", unique(l_rework[[10]]$batch)), x = "Timestamp", y = "Reworked water") +
+  ggplot2::theme_bw()
+plot(fig_rework_2)
+```
+
+Another type of water is the water reworked from other batches thanks to the research conducted by the Research & Development (R&D) and Engineering team. This liquid material raises a point that the relationship or interaction between batches should be a considered feature. However, in this study, we decide to keep it in future work, rather than exploit the time-related effect between batches.
+
+### The amount of Plantacare
+
+```{r, eval = FALSE}
+df_batches <- qs::qread("data/df_batches.qs")
+df_plantacare <- data.table::fread("dataset/1501/dossing_plantace.csv") %>%
+  .[, .(TS, Value)] %>% data.table::setnames(old = "Value", new = "plantacare")
+l_plantacare <- lapply(seq_len(nrow(df_batches)), function(index) {
+   df <- df_plantacare[TS >= df_batches[index, start] & TS <= df_batches[index, end], ]
+   df[, batch := df_batches[index, batch_name]]
+   df
+ })
+qs::qsave(l_plantacare, "data/df_plantacare_mixer_batch_binded.qs")
+```
+
+```{r}
+#| fig-cap: The amount of Plantacare used in a batch
+#| fig-subcap:
+#| - Batch 230133501
+#| - Batch 230133502
+#| layout-ncol: 2
+#| label: fig-plantacare
+#| fig-pos: "htbp"
+l_plantacare <- qs::qread("data/df_plantacare_mixer_batch_binded.qs")
+v_use_plantacare <- lapply(seq_len(length(l_plantacare)), function(index) {
+  if (nrow(l_plantacare[[index]][plantacare < 100, ]) > 5 & nrow(l_plantacare[[index]][plantacare > 100, ]) > 5) {
+    return(index)
+  }
+  NULL
+}) |> unlist()
+
+fig_plantacare_1 <- ggplot2::ggplot(data = l_plantacare[[79]], mapping = ggplot2::aes(x = TS, y = plantacare)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("The amount of Plantacare", unique(l_plantacare[[79]]$batch)), x = "Timestamp", y = "Plantacare") +
+  ggplot2::theme_bw()
+plot(fig_plantacare_1)
+
+fig_plantacare_2 <- ggplot2::ggplot(data = l_plantacare[[80]], mapping = ggplot2::aes(x = TS, y = plantacare)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("The amount of Plantacare", unique(l_plantacare[[80]]$batch)), x = "Timestamp", y = "Plantacare") +
+  ggplot2::theme_bw()
+plot(fig_plantacare_2)
+```
+
+*Plantacare* belonging to the same category as *SLES* and *Dehydol* is also an alternative for others. There are `r length(v_use_plantacare)` batches using *Plantacare* in their recipes.
+
+### The amount of enzyme
+
+```{r, eval = FALSE}
+df_batches <- qs::qread("data/df_batches.qs")
+df_enzyme <- data.table::fread("dataset/1501/ezmyne_flowmeter.csv") %>%
+  .[, .(TS, Value)] %>% data.table::setnames(old = "Value", new = "enzyme")
+l_enzyme <- lapply(seq_len(nrow(df_batches)), function(index) {
+   df <- df_enzyme[TS >= df_batches[index, start] & TS <= df_batches[index, end], ]
+   df[, batch := df_batches[index, batch_name]]
+   df
+ })
+qs::qsave(l_enzyme, "data/df_enzyme_mixer_batch_binded.qs")
+```
+
+```{r}
+#| fig-cap: The amount of Enzyme used in a batch
+#| fig-subcap:
+#| - Batch 230113504
+#| - Batch 230122501
+#| layout-ncol: 2
+#| fig-pos: "htbp"
+#| label: fig-enzyme
+l_enzyme <- qs::qread("data/df_enzyme_mixer_batch_binded.qs")
+v_use_enzyme <- lapply(seq_len(length(l_enzyme)), function(index) {
+  if (nrow(l_enzyme[[index]][enzyme < 10, ]) > 3 & nrow(l_enzyme[[index]][enzyme > 10, ]) > 3) {
+    return(index)
+  }
+  NULL
+}) |> unlist()
+
+fig_enzyme_1 <- ggplot2::ggplot(data = l_enzyme[[21]], mapping = ggplot2::aes(x = TS, y = enzyme)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("The amount of enzyme", unique(l_enzyme[[21]]$batch)), x = "Timestamp", y = "enzyme") +
+  ggplot2::theme_bw()
+plot(fig_enzyme_1)
+
+fig_enzyme_2 <- ggplot2::ggplot(data = l_enzyme[[37]], mapping = ggplot2::aes(x = TS, y = enzyme)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("The amount of enzyme", unique(l_enzyme[[37]]$batch)), x = "Timestamp", y = "enzyme") +
+  ggplot2::theme_bw()
+plot(fig_enzyme_2)
+```
+
+Notice that in [@fig-enzyme], the timestamp when the dosing happens is quite late, near the end of batches. This behavior may limit the usage of *the amount of enzyme* as a feature in the later section.
+
+### The amount of Glycerol
+
+```{r, eval = FALSE}
+df_batches <- qs::qread("data/df_batches.qs")
+df_glycerol <- data.table::fread("dataset/1501/glycerin_flowmeter.csv") %>%
+  .[, .(TS, Value)] %>% data.table::setnames(old = "Value", new = "glycerol")
+l_glycerol <- lapply(seq_len(nrow(df_batches)), function(index) {
+   df <- df_glycerol[TS >= df_batches[index, start] & TS <= df_batches[index, end], ]
+   df[, batch := df_batches[index, batch_name]]
+   df
+})
+qs::qsave(l_glycerol, "data/df_glycerol_mixer_batch_binded.qs")
+```
+
+```{r}
+#| fig-cap: The amount of Glycerol used in a batch
+#| fig-subcap:
+#| - Batch 230712504
+#| - Batch 230713503
+#| layout-ncol: 2
+#| fig-pos: "htbp"
+#| label: fig-glycerol
+l_glycerol <- qs::qread("data/df_glycerol_mixer_batch_binded.qs")
+v_use_glycerol <- lapply(seq_len(length(l_glycerol)), function(index) {
+  if (nrow(l_glycerol[[index]][glycerol < 50, ]) > 3 & nrow(l_glycerol[[index]][glycerol > 50, ]) > 3) {
+    return(index)
+  }
+  NULL
+}) |> unlist()
+
+fig_glycerol_1 <- ggplot2::ggplot(data = l_glycerol[[776]], mapping = ggplot2::aes(x = TS, y = glycerol)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("The amount of Glycerol", unique(l_glycerol[[776]]$batch)), x = "Timestamp", y = "Glycerol") +
+  ggplot2::theme_bw()
+plot(fig_glycerol_1)
+
+fig_glycerol_2 <- ggplot2::ggplot(data = l_glycerol[[783]], mapping = ggplot2::aes(x = TS, y = glycerol)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("The amount of Glycerol", unique(l_glycerol[[783]]$batch)), x = "Timestamp", y = "Glycerol") +
+  ggplot2::theme_bw()
+plot(fig_glycerol_2)
+```
+
+*Glycerol* is a sweet colorless syrupy alcohol usually obtained from fats and oils, although *glycerol* could be a byproduct in soap manufacturing.
+
+### The agitator speed of the main mixer
+
+```{r, eval = FALSE}
+df_batches <- qs::qread("data/df_batches.qs")
+df_agitator <- data.table::fread("dataset/1501/main_mixer_agitator_of_main_mixer.csv") %>%
+  .[, .(TS, Value)] %>% data.table::setnames(old = "Value", new = "agitator")
+l_agitator <- lapply(seq_len(nrow(df_batches)), function(index) {
+   df <- df_agitator[TS >= df_batches[index, start] & TS <= df_batches[index, end], ]
+   df[, batch := df_batches[index, batch_name]]
+   df
+})
+qs::qsave(l_agitator, "data/df_agitator_mixer_batch_binded.qs")
+```
+
+```{r}
+#| fig-cap: The speed of the main mixer agitator
+#| fig-subcap:
+#| - Batch 230111501
+#| - Batch 230111503
+#| layout-ncol: 2
+#| fig-pos: "htbp"
+#| label: fig-agitator
+l_agitator <- qs::qread("data/df_agitator_mixer_batch_binded.qs")
+
+fig_agitator_1 <- ggplot2::ggplot(data = l_agitator[[1]], mapping = ggplot2::aes(x = TS, y = agitator)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("Agitator speed", unique(l_agitator[[1]]$batch)), x = "Timestamp", y = "Agitator") +
+  ggplot2::theme_bw()
+plot(fig_agitator_1)
+
+fig_agitator_2 <- ggplot2::ggplot(data = l_agitator[[3]], mapping = ggplot2::aes(x = TS, y = agitator)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("Agitator speed", unique(l_agitator[[3]]$batch)), x = "Timestamp", y = "Agitator") +
+  ggplot2::theme_bw()
+plot(fig_agitator_2)
+```
+
+Back to the machine signal, the main mixer is constructed with a big agitator in the middle. The agitator is in charge of ensuring the mixture is mixed evenly. The setting for the agitator's speed changes over the batch and depends on the product recipe. The signal visualized in [@fig-agitator] is an example of the actual speed of the agitator, whose value is near the expected setting, throughout the batch.
+
+Since the actual values of the agitator are not far from the machine running parameter. Besides, no signal shows the chosen value to run in the batch. Therefore, using the considered signal as an input may be a challenge. One can argue that the vector of values when the agitator is in stable phases shows the specific status of it in the batch. However, the number of stable phases varying depends on the product itself, we expect it is hard to find a shared representative format for the speed of the agitator.
+
+### The flow of chlorinated water, LAS, and NaOH
+
+```{r, eval = FALSE}
+df_batches <- qs::qread("data/df_batches.qs")
+df_flow_water <- data.table::fread("dataset/1501/main_mixer_flow_of_chlor_water.csv") %>%
+  .[, .(TS, Value)] %>% data.table::setnames(old = "Value", new = "flow_water")
+l_flow_water <- lapply(seq_len(nrow(df_batches)), function(index) {
+   df <- df_flow_water[TS >= df_batches[index, start] & TS <= df_batches[index, end], ]
+   df[, batch := df_batches[index, batch_name]]
+   df
+})
+qs::qsave(l_flow_water, "data/df_flow_water_mixer_batch_binded.qs")
+```
+
+```{r}
+#| fig-cap: The speed of flushing chlorinated water to the main mixer
+#| fig-subcap:
+#| - Batch 230111501
+#| - Batch 230111503
+#| layout-ncol: 2
+#| layout-nrow: 2
+#| fig-pos: "htbp"
+#| label: fig-flow-water
+l_flow_water <- qs::qread("data/df_flow_water_mixer_batch_binded.qs")
+l_water <- qs::qread("data/df_water_main_mixer_batch_binded.qs")
+
+fig_flow_water_1 <- ggplot2::ggplot(data = l_flow_water[[1]], mapping = ggplot2::aes(x = TS, y = flow_water)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("Speed of flushing water", unique(l_flow_water[[1]]$batch)), x = "Timestamp", y = "Speed") +
+  ggplot2::theme_bw()
+plot(fig_flow_water_1)
+
+fig_flow_water_2 <- ggplot2::ggplot(data = l_flow_water[[3]], mapping = ggplot2::aes(x = TS, y = flow_water)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("Speed of flushing water", unique(l_flow_water[[3]]$batch)), x = "Timestamp", y = "Speed") +
+  ggplot2::theme_bw()
+plot(fig_flow_water_2)
+
+fig_water_1 <- ggplot2::ggplot(data = l_water[[1]], mapping = ggplot2::aes(x = TS, y = water_main)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("Weight of chlorinated water", unique(l_water[[1]]$batch)), x = "Timestamp", y = "Chlorinated Water") +
+  ggplot2::theme_bw()
+plot(fig_water_1)
+
+fig_water_2 <- ggplot2::ggplot(data = l_water[[3]], mapping = ggplot2::aes(x = TS, y = water_main)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("Weight of chlorinated water", unique(l_water[[3]]$batch)), x = "Timestamp", y = "Chlorinated Water") +
+  ggplot2::theme_bw()
+plot(fig_water_2)
+```
+
+We have already discussed the signal monitoring of the volume of the chlorinated water flushed into the main mixer. In this section, a different aspect of the very same process is demonstrated in [@fig-flow-water] where the speed of water dosed into the main mixer is recorded and depicted.
+We can see in [@fig-flow-water] that the two signals, namely *the flow* and *the weight* of chlorinated water, are compatible with each other. Similarly, the flow of major materials such as LAS and NaOH is also recorded.
+
+```{r, eval = FALSE}
+df_batches <- qs::qread("data/df_batches.qs")
+df_flow_las <- data.table::fread("dataset/1501/main_mixer_flow_of_las.csv") %>%
+  .[, .(TS, Value)] %>% data.table::setnames(old = "Value", new = "flow_las")
+l_flow_las <- lapply(seq_len(nrow(df_batches)), function(index) {
+   df <- df_flow_las[TS >= df_batches[index, start] & TS <= df_batches[index, end], ]
+   df[, batch := df_batches[index, batch_name]]
+   df
+})
+qs::qsave(l_flow_las, "data/df_flow_las_mixer_batch_binded.qs")
+```
+
+```{r, eval = FALSE}
+df_batches <- qs::qread("data/df_batches.qs")
+df_flow_naoh <- data.table::fread("dataset/1501/main_mixer_flow_of_naoh.csv") %>%
+  .[, .(TS, Value)] %>% data.table::setnames(old = "Value", new = "flow_naoh")
+l_flow_naoh <- lapply(seq_len(nrow(df_batches)), function(index) {
+   df <- df_flow_naoh[TS >= df_batches[index, start] & TS <= df_batches[index, end], ]
+   df[, batch := df_batches[index, batch_name]]
+   df
+})
+qs::qsave(l_flow_naoh, "data/df_flow_naoh_mixer_batch_binded.qs")
+```
+
+### The amount of TEA
+
+```{r, eval = FALSE}
+df_batches <- qs::qread("data/df_batches.qs")
+df_tea <- data.table::fread("dataset/1501/mixing_weight_of_tea.csv") %>%
+  .[, .(TS, Value)] %>% data.table::setnames(old = "Value", new = "tea")
+l_tea <- lapply(seq_len(nrow(df_batches)), function(index) {
+   df <- df_tea[TS >= df_batches[index, start] & TS <= df_batches[index, end], ]
+   df[, batch := df_batches[index, batch_name]]
+   df
+})
+qs::qsave(l_tea, "data/df_tea_mixer_batch_binded.qs")
+```
+
+```{r}
+#| fig-cap: The amount of TEA
+#| fig-subcap:
+#| - Batch 230121509
+#| - Batch 230122501
+#| layout-ncol: 2
+#| layout-nrow: 2
+#| fig-pos: "htbp"
+#| label: fig-tea
+l_tea <- qs::qread("data/df_tea_mixer_batch_binded.qs")
+v_use_tea <- lapply(seq_len(length(l_tea)), function(index) {
+  if (nrow(l_tea[[index]][tea < 50, ]) > 3 & nrow(l_tea[[index]][tea > 50, ]) > 3) {
+    return(index)
+  }
+  NULL
+}) |> unlist()
+
+fig_tea_1 <- ggplot2::ggplot(data = l_tea[[36]], mapping = ggplot2::aes(x = TS, y = tea)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("The amount of TEA", unique(l_tea[[36]]$batch)), x = "Timestamp", y = "TEA") +
+  ggplot2::theme_bw()
+plot(fig_tea_1)
+
+fig_tea_2 <- ggplot2::ggplot(data = l_tea[[37]], mapping = ggplot2::aes(x = TS, y = tea)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("The amount of TEA", unique(l_tea[[37]]$batch)), x = "Timestamp", y = "TEA") +
+  ggplot2::theme_bw()
+plot(fig_tea_2)
+```
+
+*TEA*, or *Triethanolamine* is the next subject of data preprocessing. [@fig-tea] classifies the signal *weight of TEA* as a flowmeter signal like chlorinated water and other liquid materials. The difference between TEA and these considered materials is that the phase of dosing TEA happens much later than the others.
+
+### The temperature of chlorinated and hot water
+
+```{r, eval = FALSE}
+df_batches <- qs::qread("data/df_batches.qs")
+df_temp_chlor <- data.table::fread("dataset/1501/main_mixer_temperature_of_chlor_water.csv") %>%
+  .[, .(TS, Value)] %>% data.table::setnames(old = "Value", new = "temp_chlor")
+l_temp_chlor <- lapply(seq_len(nrow(df_batches)), function(index) {
+   df <- df_temp_chlor[TS >= df_batches[index, start] & TS <= df_batches[index, end], ]
+   df[, batch := df_batches[index, batch_name]]
+   df[, temp_chlor := as.numeric(temp_chlor)]
+   df
+})
+qs::qsave(l_temp_chlor, "data/df_temp_chlor_mixer_batch_binded.qs")
+```
+
+```{r, eval = FALSE}
+df_batches <- qs::qread("data/df_batches.qs")
+df_temp_hot <- data.table::fread("dataset/1501/main_mixer_temperature_of_hot_water.csv") %>%
+  .[, .(TS, Value)] %>% data.table::setnames(old = "Value", new = "temp_hot")
+l_temp_hot <- lapply(seq_len(nrow(df_batches)), function(index) {
+   df <- df_temp_hot[TS >= df_batches[index, start] & TS <= df_batches[index, end], ]
+   df[, batch := df_batches[index, batch_name]]
+   df[, temp_hot := as.numeric(temp_hot)]
+   df
+})
+qs::qsave(l_temp_hot, "data/df_temp_hot_mixer_batch_binded.qs")
+```
+
+```{r}
+#| fig-cap: The temperature of chlorinated water and hot water
+#| fig-subcap:
+#| - Chlorinated water in batch 230111501
+#| - Hot water in batch 230112508
+#| layout-ncol: 2
+#| fig-pos: "htbp"
+#| label: fig-temp-water
+l_temp_chlor <- qs::qread("data/df_temp_chlor_mixer_batch_binded.qs")
+l_temp_hot <- qs::qread("data/df_temp_hot_mixer_batch_binded.qs")
+
+fig_temp_chlor <- ggplot2::ggplot(data = l_temp_chlor[[1]], mapping = ggplot2::aes(x = TS, y = temp_chlor)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("Temperature of chlorinated water", unique(l_temp_chlor[[1]]$batch)), x = "Timestamp", y = "TEA") +
+  ggplot2::theme_bw()
+plot(fig_temp_chlor)
+
+v_use_hot <- lapply(seq_len(length(l_temp_hot)), function(index) {
+  if (nrow(l_temp_hot[[index]][temp_hot > 50, ]) > 10) return(index)
+  NULL
+}) |> unlist()
+val_batch <- 14
+fig_temp_hot <- ggplot2::ggplot(data = l_temp_hot[[val_batch]], mapping = ggplot2::aes(x = TS, y = temp_hot)) +
+  ggplot2::geom_line() +
+  ggplot2::labs(title = paste("Temperature of hot water", unique(l_temp_hot[[val_batch]]$batch)), x = "Timestamp", y = "TEA") +
+  ggplot2::theme_bw()
+plot(fig_temp_hot)
+```
+
+Some signals showing the temperature of the water, chlorinated and hot water to be specific, in batches are also visualized in [@fig-temp-water]. Note that the data depends on the sensor installed in the flushing pipes. Therefore, when there is no water flushed, the value of the sensor is depleted over time until the next dosing phases or the following batches.
+
+### Summary {#sec-feature-processing-summary}
+
+This material also puts an end to the section on *Data preprocessing* whose purpose is to showcase the process of windowing the signal into batches or bought by batches. The signal descriptions are stated in each section to clarify the meaning of the signals. These cut datasets will then be used in the next section to draft the features that models will be constructed on. We summarize and divided the signals mentioned in [@sec-feature-processing] as below:
+
+- The *flowmeter* signals which are usually the dosed amount of liquid materials, account for $12$ times series.
+- The *physical* signals which are the data that simulate the status of the main mixer in process or the physical side of the manufacturing, contribute $10$ candidates.
+
+## Feature Engineering {#sec-feature-engineering}
+
+Some points distinguish the training and deployment for models. One of them is that, in the training process, we can see the whole batch. Whereas, only a partial time series is recorded in a production system for the application that the models are part of.
+
+This leads to the reasons for our approaches when we carry out the feature engineering process. That is
+
+> We conduct algorithms that receive a time window of time series as input. The outcomes are features detected by the algorithms.
+
+This section is dedicated to introducing the algorithm and some insights behind it. The order of discussed feature detection is to follow the models' inputs in [@sec-baseline]. The main difference between the baseline model approach and other models is that the baseline model depends on the domain knowledge provided by the industrial experts. Meanwhile, other models used as a comparison will be conducted with statistics and an explainable AI approach, [@sec-explainable-ai]
+
+### Baseline model for viscosity
+
+The reason for us to construct a model that predicts the value of viscosity as a baseline model is that it has been already deployed in the industry. Moreover, the expertise we gathered when researching the problem is reliable and agreed upon by multiple manufacturing sites in the corporation. The baseline inputs for viscosity are listed below:
+
+| Input ID |                                       Name |
+|----------|-------------------------------------------:|
+| 1        |                   Weight of the main mixer |
+| 2        |              Temperature of the main mixer |
+| 3        | Pressure of pipe in the circulation system |
+| 4        |              Speed of the circulation pump |
+
+: Inputs of Viscosity baseline model {#tbl-vis-baseline-inputs} {.striped .hover}
+
+The [@tbl-vis-baseline-inputs], however, only registered the name of the time series, not the features. The question is which part of the time series the baseline model will use? The experts claim that before the batches are transferred to the storage tank, there will be an around 5 to 10-minute time window in which these sets of signals reach a stable phase. This is when the features can be extracted by taking the mean value.
+
+In this study, we replicate the idea but make a change to the time aspect. To be more detailed, instead of waiting until the end of batches, we establish an algorithm that will scan these 4-time series from the beginning. The algorithm will decide if the stable phase is found and then extract the features.
+
+```{r}
+df_batches <- qs::qread("data/df_batches.qs")
+l_weight <- qs::qread("data/df_weight_main_mixer_batch_binded.qs")
+l_press <- qs::qread("data/df_press_main_mixer_batch_binded.qs")
+l_temp <- qs::qread("data/df_temp_main_mixer_batch_binded.qs")
+l_speed <- qs::qread("data/df_speed_main_mixer_batch_binded.qs")
+```
+
+```{r}
+get_nrow <- function(l_index, l_data) {
+  result <- unlist(lapply(l_index, function(index) {
+    return(nrow(l_data[[as.numeric(index)]]))
+  }))
+  return(result)
+}
+df_batches$weight <- get_nrow(rownames(df_batches), l_weight)
+df_batches$press <- get_nrow(rownames(df_batches), l_press)
+df_batches$temp <- get_nrow(rownames(df_batches), l_temp)
+df_batches$speed <- get_nrow(rownames(df_batches), l_speed)
+
+df_batches <- data.table::data.table(df_batches)
+
+val_batch_missing_signal <- nrow(df_batches[weight == 0 | press == 0 | temp == 0 | speed == 0, ])
+df_batches <- df_batches[weight > 0 & press > 0 & temp > 0 & speed > 0, ]
+```
+
+```{r}
+name_list_w_batch <- function(l_dta) {
+  names(l_dta) <- lapply(l_dta, function(tbl) {
+    if (nrow(tbl) > 0) return(unique(tbl$batch))
+    "missing"
+  })
+  return(l_dta)
+}
+
+l_weight <- name_list_w_batch(l_weight)
+l_press <- name_list_w_batch(l_press)
+l_temp <- name_list_w_batch(l_temp)
+l_speed <- name_list_w_batch(l_speed)
+```
+
+```{r, cache = TRUE}
+get_index_stable <- function(dta, v_samples) {
+  val_sd <- sd(dta[[2]])
+
+  l_sd <- lapply(v_samples, function(start) {
+    ts_sample <- unlist(dta[TS > start & TS < start + 300, ][[2]])
+    val_sd_sample <- sd(ts_sample)
+    return(val_sd_sample[val_sd_sample < val_sd * 0.05])
+  })
+  which(!is.na(l_sd > 0))
+}
+
+get_index_stable_all <- function(v_samples, v_dta) {
+  l_index <- lapply(v_dta, function(dta) {
+    get_index_stable(dta, v_samples)
+  })
+  return(l_index)
+}
+
+add_index_stable_all_2_batches <- function(df_batches) {
+  df_batches$first_stable_index <- lapply(seq_len(nrow(df_batches)), function(index) {
+    v_samples <- seq(from = df_batches[index, start], to = df_batches[index, end], by = 60)
+    v_stable_indexes <-  tryCatch({
+      val_batch <- as.character(df_batches[index, batch_name])
+      v_index <- Reduce(get_index_stable_all(v_samples, list(l_weight[[val_batch]], l_press[[val_batch]], l_temp[[val_batch]], l_speed[[val_batch]])), f = intersect)
+      v_index
+    }, error = function(e) {
+      print(index)
+    })
+    
+    result <- tryCatch({
+      v_stable_indexes[[1]]
+    }, error = function(e) {
+      NA_integer_
+    })
+
+    result
+  })
+  return(df_batches)
+}
+
+df_batches <- add_index_stable_all_2_batches(df_batches)
+```
+
+```{r}
+df_batches[, first_stable_index := as.numeric(first_stable_index)]
+```
+
+There are `r val_batch_missing_signal` batches missing one of the four features. These batches are not used to extract features and build the baseline model.
+
+> The *stable* phases are detected based on the *standard deviation* of time series values. If the *standard deviation* calculated from the value within a time window of $5$ minutes is less than $5\%$ of the *standard deviation for the whole time series*. With the approach above, we can identify the first minute that is considered stable.
+
+```{r}
+#| label: tbl-stable-index-0.05
+#| tbl-cap: Descriptive analysis for detecting stable indexes with threshold 5\% 
+tbl_summary <- summary(df_batches$first_stable_index)
+knitr::kable(data.frame(Statistics = names(tbl_summary), Value = as.numeric(tbl_summary)))
+```
+
+The [@tbl-stable-index-0.05] shows a summary of the algorithm to detect stable indexes for the set of four features. The unit of measure used in the calculation is minute. The number of $NaN$ values is high, with $2391$ batches missing the time window. By average, the stable phases happen in the minute of $23$, with the first and third quarters being $16$ and $28$, respectively. However, the max value of $97$ and the min value of $1$ raise the thought that there may be batches with abnormal values.
+
+```{r}
+example_index <- which(df_batches$first_stable_index > 20 & df_batches$first_stable_index < 25)
+example_index <- 11
+example_minute <- 22
+```
+
+```{r}
+#| layout-ncol: 2
+#| layout-nrow: 2
+#| label: fig-stable-window-exapmle
+#| fig-cap: An example of detecting a stable time window
+#| fig-subcap: 
+#| - Weight of main mixer
+#| - Pressure of circulation system
+#| - Temperature of main mixer
+#| - Speed of circulation pump
+#| fig-pos: "htbp"
+example_batch <- as.character(df_batches[example_index, batch_name])
+example_ts <- df_batches[example_index, start]
+example_start <- example_ts + example_minute * 60
+example_end <- example_start + 300
+
+plot_stable <- function(dta, key, start, end) {
+  val_mean <- mean(dta[TS > start & TS < end, ][[key]], na.rm = TRUE)
+  fig <- ggplot2::ggplot(data = dta, mapping = ggplot2::aes(x = TS, y = dta[[key]])) +
+    ggplot2::geom_line() +
+    ggplot2::geom_hline(ggplot2::aes(yintercept = val_mean), color = "red3") +
+    ggplot2::geom_vline(ggplot2::aes(xintercept = start), linetype = "dashed",  color = "orange") +
+    ggplot2::geom_vline(ggplot2::aes(xintercept = end),linetype = "dashed", color = "orange") +
+    ggplot2::theme_bw()
+  plot(fig)
+}
+
+plot_stable(dta = l_weight[[example_batch]], key = "weight_main", start = example_start, end = example_end)
+plot_stable(dta = l_press[[example_batch]], key = "press_main", start = example_start, end = example_end)
+plot_stable(dta = l_temp[[example_batch]], key = "temp_main", start = example_start, end = example_end)
+plot_stable(dta = l_speed[[example_batch]], key = "speed_pump", start = example_start, end = example_end)
+```
+
+```{r}
+#| label: fig-box-stable-index
+#| fig-cap: Distribution of first stable index found
+#| fig-pos: "htbp"
+#| fig-width: 3
+#| fig-height: 2
+fig_stable <- ggplot2::ggplot(data = df_batches[!is.na(first_stable_index), ], mapping = ggplot2::aes(x = "Minute", y = first_stable_index)) +
+  ggplot2::geom_boxplot(outlier.colour = "red", outlier.shape = 1, outlier.size = 0.7) +
+  ggplot2::xlab("Minute stable window found") + 
+  ggplot2::ylab("Minute") + 
+  ggplot2::theme_bw()
+plot(fig_stable)
+```
+
+```{r}
+dta_ready <- df_batches[!is.na(first_stable_index) & first_stable_index < 47, ]
+```
+
+[@fig-box-stable-index] depicts that the batches that stable windows detected after 50 minutes are outliers. After removing the outliers and null values, the features are computed before they can used for models. The mean values of these four-time series within 5 five minutes when they are first stable are the inputs for the viscosity baseline model.
+
+```{r, cache = TRUE}
+v_weight <- list()
+v_press <- list()
+v_temp <- list()
+v_speed <- list()
+calc_mean_in_stable <- function(dta_ready) {
+  result <- lapply(seq_len(nrow(dta_ready)), function(index) {
+    v_index <- dta_ready[index, first_stable_index]
+    v_batch <- dta_ready[index, batch_name]
+
+    v_start <- dta_ready[index, start] + v_index * 60
+    v_end <- v_start + 300
+
+    mean_weight <- l_weight[[as.character(v_batch)]][TS > v_start & TS < v_end, weight_main] %>% mean()
+    mean_press <- l_press[[as.character(v_batch)]][TS > v_start & TS < v_end, press_main] %>% mean()
+    mean_temp <- l_temp[[as.character(v_batch)]][TS > v_start & TS < v_end, temp_main] %>% mean()
+    mean_speed <- l_speed[[as.character(v_batch)]][TS > v_start & TS < v_end, speed_pump] %>% mean()
+
+    v_weight <<- c(v_weight, mean_weight)
+    v_press <<- c(v_press, mean_press)
+    v_temp <<- c(v_temp, mean_temp)
+    v_speed <<- c(v_speed, mean_speed)
+
+    NULL
+  })
+}
+calc_mean_in_stable(dta_ready)
+```
+
+```{r}
+dta_ready[, weight := as.numeric(v_weight)]
+dta_ready[, press := as.numeric(v_press)]
+dta_ready[, temp := as.numeric(v_temp)]
+dta_ready[, speed := as.numeric(v_speed)]
+```
+
+```{r}
+#| tbl-cap: Summary of the features for the baseline model
+#| label: tbl-baseline-vis-features
+knitr::kable(summary(dta_ready[, .(weight, press, temp, speed)]), row.names = FALSE)
+```
+
+Based on the information provided by [@tbl-baseline-vis-features], more investigation is required to make sure no outlier and missing value is used in the model training process.
+
+```{r}
+dta_ready <- dta_ready[!is.na(weight) & !is.na(press) & !is.na(temp) & !is.na(speed), ]
+```
+
+```{r}
+#| layout-ncol: 2
+#| layout-nrow: 2
+#| label: fig-box-features
+#| fig-pos: "htbp"
+#| fig-cap: Distributions of baseline model features
+#| fig-subcap: 
+#| - Weight
+#| - Pressure
+#| - Temperature
+#| - Speed
+fig_weight <- ggplot2::ggplot(data = dta_ready, mapping = ggplot2::aes(x = "Weight", y = weight)) +
+  ggplot2::geom_boxplot(outlier.colour = "red", outlier.shape = 1, outlier.size = 0.7) +
+  ggplot2::xlab("Weight") + ggplot2::ylab("Weight of main mixer") + ggplot2::theme_bw()
+
+fig_press <- ggplot2::ggplot(data = dta_ready, mapping = ggplot2::aes(x = "Press", y = press)) +
+  ggplot2::geom_boxplot(outlier.colour = "red", outlier.shape = 1, outlier.size = 0.7) +
+  ggplot2::xlab("Pressure") + ggplot2::ylab("Pressure of circulation system") + ggplot2::theme_bw()
+
+fig_temp <- ggplot2::ggplot(data = dta_ready, mapping = ggplot2::aes(x = "Temperature", y = temp)) +
+  ggplot2::geom_boxplot(outlier.colour = "red", outlier.shape = 1, outlier.size = 0.7) +
+  ggplot2::xlab("Temperature") + ggplot2::ylab("Temperature of main mixer") + ggplot2::theme_bw()
+
+fig_speed <- ggplot2::ggplot(data = dta_ready, mapping = ggplot2::aes(x = "Speed", y = speed)) +
+  ggplot2::geom_boxplot(outlier.colour = "red", outlier.shape = 1, outlier.size = 0.7) +
+  ggplot2::xlab("Speed") + ggplot2::ylab("Speed of circulation pump") + ggplot2::theme_bw()
+
+plot(fig_weight)
+plot(fig_press)
+plot(fig_temp)
+plot(fig_speed)
+```
+
+```{r}
+dta_ready <- dta_ready[weight > 10000 & press > 0 & speed > 200 & first_stable_index > 5, ]
+```
+
+By exploring the [@fig-box-features], we identified outliers as batches whose
+
+-   Weight is under $10000$ since the capacity of the main mixer is $15$ tons. Therefore, it is too rare for the batch to be under $10$ tons
+-   Pressure must be a positive number
+-   Speed should be restricted to only receive value above $200$
+
+Finally, we have received a dataset with `r nrow(dta_ready)` records that can be used to train a baseline model for predicting viscosity in [@sec-base-vis]
+
+```{r, eval = FALSE}
+qs::qsave(x = dta_ready, file = "data/df_train_baseline_vis.qs")
+```
+
+### Baseline model for pH
+
+Continue the topic of building features for baseline models, pH is the next discussed one. Unlike the products' viscosity which can be derived from physical machine data, the pH of products is influenced by the materials used in the batch. According to experts, the inputs for the baseline model of pH can be listed below:
+
+| Input ID |     The amount of |
+|----------|------------------:|
+| 1        | Chlorinated water |
+| 2        |               LAS |
+| 3        |              NaOH |
+| 4        |              SLES |
+| 5        |              CAPB |
+
+: Inputs of pH baseline model {.striped .hover #tbl-ph-baseline-inputs}
+
+The time series shown in [@sec-feature-processing] needs to be transformed into tabular data for model training. The amount of materials flushed by the equipment and measured by sensors are extracted following two steps
+
+1.  Identify the point where the signal starts stable.
+2.  Get the value of the signal in the stable phase.
+
+We apply a simple algorithm to collect the information of the amount dosed. Notice that in a proper flushing phase, there is always at least one period that the value of the sensors goes sideline. Therefore, the algorithm can be described as follows:
+
+-   Keep only the value that equals the one previous and behind it.
+-   The unique value found in the remaining is the chosen one.
+
+```{r}
+df_batches <- qs::qread("data/df_batches.qs")
+l_water <- qs::qread("data/df_water_main_mixer_batch_binded.qs")
+l_las <- qs::qread("data/df_las_main_mixer_batch_binded.qs")
+l_naoh <- qs::qread("data/df_naoh_main_mixer_batch_binded.qs")
+l_sles1 <- qs::qread("data/df_sles1_main_mixer_batch_binded.qs")
+l_capb <- qs::qread("data/df_capb_main_mixer_batch_binded.qs")
+```
+
+```{r}
+get_nrow <- function(l_index, l_data) {
+  result <- unlist(lapply(l_index, function(index) {
+    return(nrow(l_data[[as.numeric(index)]]))
+  }))
+  return(result)
+}
+df_batches$water <- get_nrow(rownames(df_batches), l_water)
+df_batches$las <- get_nrow(rownames(df_batches), l_las)
+df_batches$naoh <- get_nrow(rownames(df_batches), l_naoh)
+df_batches$sles1 <- get_nrow(rownames(df_batches), l_sles1)
+df_batches$capb <- get_nrow(rownames(df_batches), l_capb)
+
+df_batches <- data.table::data.table(df_batches)
+
+val_batch_missing_signal <- nrow(df_batches[water == 0 | las == 0 | naoh == 0 | sles1 == 0 | capb == 0, ])
+df_batches <- df_batches[water > 0 & las > 0 & naoh > 0 & sles1 > 0 & capb > 0, ]
+```
+
+```{r}
+name_list_w_batch <- function(l_dta) {
+  names(l_dta) <- lapply(l_dta, function(tbl) {
+    if (nrow(tbl) > 0) return(unique(tbl$batch))
+    "missing"
+  })
+  return(l_dta)
+}
+
+l_water <- name_list_w_batch(l_water)
+l_las <- name_list_w_batch(l_las)
+l_naoh <- name_list_w_batch(l_naoh)
+l_sles1 <- name_list_w_batch(l_sles1)
+l_capb <- name_list_w_batch(l_capb)
+```
+
+```{r}
+df_batches$water <- lapply(seq_len(nrow(df_batches)), function(idx) {
+  dta_water <- l_water[[as.character(df_batches[idx, batch_name])]]
+  dta_water <- dta_water[water_main == data.table::shift(dta_water$water_main) | water_main == data.table::shift(dta_water$water_main, type = "lead"), ]
+  sum(unique(dta_water$water_main))
+})
+
+df_batches$las <- lapply(seq_len(nrow(df_batches)), function(idx) {
+  dta_las <- l_las[[as.character(df_batches[idx, batch_name])]]
+  dta_las <- dta_las[las_main == data.table::shift(dta_las$las_main) | las_main == data.table::shift(dta_las$las_main, type = "lead"), ]
+  sum(unique(dta_las$las_main))
+})
+
+df_batches$naoh <- lapply(seq_len(nrow(df_batches)), function(idx) {
+  dta_naoh <- l_naoh[[as.character(df_batches[idx, batch_name])]]
+  dta_naoh <- dta_naoh[naoh_main == data.table::shift(dta_naoh$naoh_main) | naoh_main == data.table::shift(dta_naoh$naoh_main, type = "lead"), ]
+  sum(unique(dta_naoh$naoh_main))
+})
+
+df_batches$sles1 <- lapply(seq_len(nrow(df_batches)), function(idx) {
+  dta_sles1 <- l_sles1[[as.character(df_batches[idx, batch_name])]]
+  dta_sles1 <- dta_sles1[sles1_main == data.table::shift(dta_sles1$sles1_main) | sles1_main == data.table::shift(dta_sles1$sles1_main, type = "lead"), ]
+  sum(unique(dta_sles1$sles1_main))
+})
+
+df_batches$capb <- lapply(seq_len(nrow(df_batches)), function(idx) {
+  dta_capb <- l_capb[[as.character(df_batches[idx, batch_name])]]
+  dta_capb <- dta_capb[capb_main == data.table::shift(dta_capb$capb_main) | capb_main == data.table::shift(dta_capb$capb_main, type = "lead"), ]
+  sum(unique(dta_capb$capb_main))
+})
+
+df_batches[, water := as.numeric(water)]
+df_batches[, las := as.numeric(las)]
+df_batches[, naoh := as.numeric(naoh)]
+df_batches[, sles1 := as.numeric(sles1)]
+df_batches[, capb := as.numeric(capb)]
+```
+
+With this approach, we calculate the amount of chlorinated water used in batches whose distribution is shown in [@tbl-water-raw]. There are some outliers. For example, the maximum capacity of the main mixer is $165000$. Therefore, any value that is above $16500$ is considered an outlier and will be removed. [@fig-box-water] explains more about the elimination of batches whose amount of water is not between $5000$ and $16500$.
+
+```{r}
+#| tbl-cap: The amount of water found in batches (raw)
+#| label: tbl-water-raw
+tbl_summary <- summary(as.numeric(df_batches$water))
+knitr::kable(data.frame(Statistics = names(tbl_summary), Value = as.numeric(tbl_summary)))
+```
+
+```{r}
+#| fig-cap: Boxplot of flushed water
+#| label: fig-box-water
+#| fig-pos: "htbp"
+#| fig-width: 3
+#| fig-height: 2
+ggplot2::ggplot(df_batches, mapping = ggplot2::aes(x = "Water", y = water)) + 
+ggplot2::geom_boxplot(outlier.color = "red", outlier.shape = 1, outlier.size = 0.8) +
+ggplot2::theme_bw()
+```
+
+```{r}
+#| fig-cap: Boxplot of major liquid material
+#| fig-subcap:
+#| - LAS
+#| - NaOH
+#| - SLES
+#| - CAPB
+#| label: fig-box-liquid-material
+#| layout-ncol: 2
+#| layout-nrow: 2
+#| fig-pos: "htbp"
+fig_las <- ggplot2::ggplot(df_batches, mapping = ggplot2::aes(x = "LAS", y = las)) + 
+  ggplot2::geom_boxplot(outlier.color = "red", outlier.shape = 1, outlier.size = 0.8) +
+  ggplot2::theme_bw()
+fig_naoh <- ggplot2::ggplot(df_batches, mapping = ggplot2::aes(x = "NaOH", y = naoh)) +
+  ggplot2::geom_boxplot(outlier.color = "red", outlier.shape = 1, outlier.size = 0.8) +
+  ggplot2::theme_bw()
+fig_sles1 <- ggplot2::ggplot(df_batches, mapping = ggplot2::aes(x = "SLES", y = sles1)) +
+  ggplot2::geom_boxplot(outlier.color = "red", outlier.shape = 1, outlier.size = 0.8) +
+  ggplot2::theme_bw()
+fig_capb <- ggplot2::ggplot(df_batches, mapping = ggplot2::aes(x = "CAPB", y = capb)) +
+  ggplot2::geom_boxplot(outlier.color = "red", outlier.shape = 1, outlier.size = 0.8) +
+  ggplot2::theme_bw()
+plot(fig_las)
+plot(fig_naoh)
+plot(fig_sles1)
+plot(fig_capb)
+```
+
+We conduct the same analysis for the remaining time series, namely LAS, NaOH, SLES, and CAPB. The boxplot for the distributions is depicted in [@fig-box-liquid-material]. [@fig-box-liquid-material] also helps us to reduce the number of outliers in the data set, by eliminating batches whose:
+
+-   LAS is over $3000$.
+-   NaOH is under $240$ or above $760$.
+-   SLES is over $3000$.
+
+```{r}
+dta_ready <- df_batches[water > 5000 & water < 16500 & las < 3000 & naoh > 240 & naoh < 760 & sles1 < 3000, ]
+```
+
+```{r, eval = FALSE}
+qs::qsave(dta_ready, "data/df_train_baseline_ph.qs")
+```
+
+Following the constraints above, the number of batches satisfying them is `r nrow(dta_ready)`, about double the number of batches used for the baseline model of viscosity. The table is then saved and will be used as the training set in [@sec-base-ph]. To sum up, in this section, we have already engineered the features that can be used to construct the initial version of the predicting pH model. The computation for the amount of liquid material is simpler since it does not require detecting the stable phase of signals. However, these time series can be extracted more features. For example, the time that equipment flushes material into the main mixer has not been explored. Also, the order of material that begins to be flushed and completely flushed may affect the reaction between them, which leads to the changes in products' pH.
+
+### The features for liquid materials {#sec-feature-liquid}
+
+As we discussed in [@sec-feature-processing-summary], we have about $12$ signals about the liquid materials to be chosen as candidates for feature engineering besides those in the above section. The approach is the same that is we calculate the volume of these materials. However, to be more diverse, we also consider the time the machines need to completely flush the materials into the main mixer.
+
+The algorithm to calculate the amount of materials is discussed below:
+
+1. **Find the starting index of dosing phases**. The first step is to detect the group of indexes whose value is smaller than the one after it. Then the first index is chosen as the minimum index of the considered group.
+2. **Find the ending index of dosing phases**. The ending index is defined when the value reaches the stable period and starts to go sideline.
+3. **Return the amount**. The amount of material is the value at the ending index.
+
+In the process of computing the material volumes, we also calculate the duration of the dosing phases as features. To be more specific, after the starting and ending indexes are found, the distance between two timestamps belonging to these indexes is the duration of the material flushing process.
+
+```{r, eval = FALSE}
+l_liquid_material <- c("capb_main", "dehydol", "enzyme", "glycerol", "hot_water", "las_main", "naoh_main", "plantacare", "rework", "sles1_main", "tea", "water_main")
+l_signal <- sprintf("data/df_%s_mixer_batch_binded.qs", l_liquid_material)
+
+df_batches <- qs::qread("data/df_batches.qs") |> data.table::data.table()
+
+l_data <- lapply(seq_len(length(l_liquid_material)), function(index) {
+  val_material <- l_liquid_material[[index]]
+  l_data_signal <- qs::qread(l_signal[[index]])
+  cat(sprintf("Read material %s with %s batches \n", val_material, length(l_data_signal)))
+  l_data_signal
+})
+
+naming_w_batch <- function(l_dta) {
+  names(l_dta) <- lapply(l_dta, function(tbl) {
+    if (nrow(tbl) > 0) return(unique(tbl$batch))
+    "missing"
+  })
+  return(l_dta)
+}
+l_data <- lapply(l_data, function(l_signal) {
+  l_named_signal <- naming_w_batch(l_signal)
+  cat(sprintf("%s batch missing value \n", (names(l_named_signal) == "missing") |> as.numeric() |> sum()))
+  l_named_signal
+})
+names(l_data) <- l_liquid_material
+
+get_amount_dosing <- function(df_batches, val_signal, l_data) {
+  l_amount <- lapply(seq_len(nrow(df_batches)), function(idx) {
+    dta <- l_data[[as.character(df_batches[idx, batch_name])]]
+    start_index <- which(
+      dta[[val_signal]] < max(dta[[val_signal]]) * 0.1 &
+      dta[[val_signal]] < data.table::shift(dta[[val_signal]], type = "lead")
+    )
+    end_index <- which(
+      dta[[val_signal]] > data.table::shift(dta[[val_signal]]) & 
+      dta[[val_signal]] == data.table::shift(dta[[val_signal]], type = "lead")
+    )
+    if (length(start_index) == 0 & length(end_index) > 0) {
+      cat(sprintf("Missed start but found end in batch %s material %s\n", idx, val_signal))
+    }
+    end_value <- dta[(end_index), ][[val_signal]]
+    # cat(sprintf("Start index of dosing phase %s\n", start_index))
+    # cat(sprintf("End index of dosing phase %s\n", end_index))
+    # cat(sprintf("Value of dosing phase %s\n", end_value))
+    val_amount <- ifelse(length(start_index) == 0, 0, sum(end_value))
+    cat(sprintf("Batch no %s material %s amount %s \n", idx, val_signal, val_amount))
+    val_amount
+  })
+}
+
+get_duration_dosing <- function(df_batches, val_signal, l_data) {
+  l_amount <- lapply(seq_len(nrow(df_batches)), function(idx) {
+    dta <- l_data[[as.character(df_batches[idx, batch_name])]]
+    start_index <- which(
+      dta[[val_signal]] < max(dta[[val_signal]]) * 0.1 &
+      dta[[val_signal]] < data.table::shift(dta[[val_signal]], type = "lead")
+    )
+    end_index <- which(
+      dta[[val_signal]] > data.table::shift(dta[[val_signal]]) & 
+      dta[[val_signal]] == data.table::shift(dta[[val_signal]], type = "lead")
+    )
+    if (length(start_index) == 0 | length(end_index) == 0) {
+      cat(sprintf("Batch no %s material %s found no phase\n", idx, val_signal))
+      return(0)
+    }
+    min_end_index <- min(end_index)
+    min_start_index <- start_index[start_index < min_end_index] |> min()
+    # cat(sprintf("Start index of dosing phase %s\n", start_index))
+    # cat(sprintf("End index of dosing phase %s\n", end_index))
+    val_duration <- dta[min_end_index, TS] - dta[min_start_index, TS]
+    val_duration <- ifelse(val_duration > 0, val_duration, 0)
+    cat(sprintf("Batch no %s material %s amount %s\n", idx, val_signal, val_duration))
+    val_duration
+  })
+}
+
+lapply(l_liquid_material, function(val_signal) {
+  l_amount <- get_amount_dosing(df_batches, val_signal, l_data[[val_signal]])
+  l_duration <- get_duration_dosing(df_batches, val_signal, l_data[[val_signal]])
+  df_batches[[val_signal]] <<- l_amount
+  df_batches[[sprintf("duration_%s", val_signal)]] <<- l_duration
+  NULL
+}) |> unlist()
+df_batches[is.na(duration_tea), duration_tea := 0]
+df_batches <- df_batches[water_main > 0 & water_main < 16500, ]
+
+df_batches |> qs::qsave("data/train/feature_engineer_material.qs")
+```
+
+```{r}
+df_batches <- qs::qread("data/train/feature_engineer_material.qs")
+df_batches[is.na(duration_water_main), duration_water_main := 0]
+
+df_batches_main <- df_batches %>% data.table::data.table()
+
+l_liquid_material <- c("capb_main", "dehydol", "enzyme", "glycerol", "hot_water", "las_main", "naoh_main", "plantacare", "rework", "sles1_main", "tea", "water_main")
+v_numeric_feature <- names(df_batches_main)[!names(df_batches_main) %in% c("batch_name", "start", "end", "duration")]
+
+result <- lapply(v_numeric_feature, function(val_feature) {
+  df_batches_main[[val_feature]] <<- df_batches_main[[val_feature]] |> as.numeric()
+  NULL
+}) |> unlist()
+
+l_nrow_feature <- lapply(v_numeric_feature, function(feature) {
+  val_count <- (df_batches_main[[feature]] > 0) |> as.numeric() |> data.table::nafill(fill =0) |> sum()
+  val_count
+}) |> unlist()
+names(l_nrow_feature) <- v_numeric_feature
+```
+```{r}
+#| tbl-cap: Summary amount of liquid materials
+#| label: tbl-amount-liquid
+knitr::kable(data.frame(Feature = l_liquid_material, "No. of batches" = l_nrow_feature[l_liquid_material], row.names = NULL),)
+```
+
+```{r}
+#| tbl-cap: Summary duration of liquid materials
+#| label: tbl-duration-liquid
+v_duration_features <- sprintf("duration_%s", l_liquid_material)
+knitr::kable(data.frame(Feature = sprintf("Duration %s",l_liquid_material), "No. of batches" = l_nrow_feature[v_duration_features], row.names = NULL),)
+```
+
+[@tbl-amount-liquid; @tbl-duration-liquid] shows the result of the feature engineering process. The achieved dataset contains total `r length(v_numeric_feature)` features extracted from corresponding datasets. The features are a spare table since only a set of materials, such as *water*, *LAS*, *NaOH*, and *SLES*, are used across batches. Other minor materials depend on the *SKU* produced in batches. 
+
+
+```{r}
+#| fig-cap: Boxplot features of liquid materials
+#| layout-nrow: 2
+#| fig-subcap: 
+#| - Dosing amount
+#| - Dosing duration
+#| label: fig-liquid-material
+#| fig-pos: "htbp"
+df_melt <- reshape2::melt(df_batches_main, id.vars = "batch_name", measure.vars = l_liquid_material)
+fig_liquid_material <- ggplot2::ggplot(data = df_melt) +
+  ggplot2::geom_boxplot(ggplot2::aes(x = batch_name, y = value, color = variable), outlier.shape = 1, outlier.size = 0.7) +
+  ggplot2::theme_bw()
+plot(fig_liquid_material)
+
+df_melt <- reshape2::melt(df_batches_main, id.vars = "batch_name", measure.vars = v_duration_features)
+fig_duration_liquid <- ggplot2::ggplot(data = df_melt) +
+  ggplot2::geom_boxplot(ggplot2::aes(x = batch_name, y = value, color = variable), outlier.shape = 1, outlier.size = 0.7) +
+  ggplot2::theme_bw()
+plot(fig_duration_liquid)
+```
+
+The dataset, however, requires a step of removing outliers. Notice that since we apply a more data-driven method in this section, no domain knowledge from experts is used to eliminate the unsuitable data points. Instead, we determine the outliers with the *interquartile range method*. However, in the case of minor materials, the number of batches using them is too few that they are considered outliers. Therefore, only major materials go through the process of removing outliers. [@fig-liquid-material] shows the status of features before being cleaned.
+
+```{r}
+l_major <- list("water_main", "las_main", "naoh_main")
+l_outlier_index <- lapply(l_major, function(val_feature) {
+  v_data <- df_batches_main[[val_feature]]  |> unlist()
+  out <- boxplot.stats(v_data)
+  which(v_data %in% c(out$out))
+})
+names(l_outlier_index) <- l_major
+v_outlier_index <- Reduce(x = l_outlier_index, f = function(x, y) {union(x, y)})
+df_no_outlier <- df_batches_main[!(v_outlier_index), ]
+```
+
+```{r}
+#| fig-cap: Boxplot features of liquid materials, outlier removed
+#| fig-subcap: 
+#| - Dosing amount
+#| - Dosing duration
+#| layout-nrow: 2
+#| label: fig-liquid-material-no-outlier
+#| fig-pos: "htbp"
+df_melt <- reshape2::melt(df_no_outlier, id.vars = "batch_name", measure.vars = l_liquid_material)
+fig_liquid_material <- ggplot2::ggplot(data = df_melt) +
+  ggplot2::geom_boxplot(ggplot2::aes(x = batch_name, y = value, color = variable), outlier.shape = 1, outlier.size = 0.7) +
+  ggplot2::theme_bw()
+plot(fig_liquid_material)
+
+df_melt <- reshape2::melt(df_no_outlier, id.vars = "batch_name", measure.vars = v_duration_features)
+fig_duration_liquid <- ggplot2::ggplot(data = df_melt) +
+  ggplot2::geom_boxplot(ggplot2::aes(x = batch_name, y = value, color = variable), outlier.shape = 1, outlier.size = 0.7) +
+  ggplot2::theme_bw()
+plot(fig_duration_liquid)
+```
+
+[@fig-liquid-material-no-outlier] depicts the overview of the dataset after all major outliers are removed. The dataset contains `r nrow(df_no_outlier)` remaining rows. This dataset is the final result for this section. Next, we will feature engineer the features that are related to the *physical* data, such as the flow and temperature.
+
+### The feature of physical signals {#sec-feature-physical}
+
+After acquiring the set of features about the volume of liquid materials, the group of *physical* machine data is the next subject for the feature engineering process. The group contains the status of the devices that are parts of the mixing systems, for example, the main mixer, the circulation system, sensors of the dosing systems, etc. These signals have a shared characteristic that they change over each phase of the process. The changes in the value of the agitator depend on the changes in parameter settings. The temperature of the main mixer can be dramatically different after a certain material is dosed, thanks to the chemical reactions.
+
+Therefore, it raises a different challenge compared to the amount of liquid materials. That is there is no definition of which period is meaningful to get the value. Moreover, the aggregation method is also a difficult decision that needs to be resolved. The *mean* calculation is the first to go, but a lot of information can be lost. The same can be said for *max*, *min* and other descriptive methods. Advanced techniques for time series such as Long Short Term Memory (LSTM) can be used to extract the insights. However, in the scope of this study, we prefer a more interpretable approach stated below:
+
+- Split the signal into smaller parts for a fixed period
+- Calculate the mean value of signals within the time frames
+
+We slice a fixed window on the signal to capture the whole process of the batches. The problem is the batches' durations are different which leads to the need to determine how many windows will be applied and the duration for each window. Thanks to the work in [@sec-base-vis], we found out that in most batches, the first *stable phase* for the crucial process indicators, such as the *weight* and *temperature* of the main mixer, the *pressure* of the circulation system and the *speed* for the circulation pump, happens before the minute $30$. Also in [@fig-stable-window-exapmle], we can see that the stable window usually lasts for $5$ minutes. These insights help to answer the question of how long the fixed period should be. The approach above will be re-written as:
+
+> Calculate the mean value of signals for 5-minute windows from the beginning of the batch until 30 minutes.
+
+With the signals depending on the material flushing process such as the *flow* of *chlorinated water*, *LAS*, and *NaOH*, the time window slicing is not appropriate. In these situations, the mean values of the signal within only the dosing phases are in use. In another case, the number of batches using the hot water is very limited. We decide not to include the *temperature* of the considered material in the set of features.
+
+```{r, eval = FALSE}
+l_continuous_input <- c("agitator", "press_main", "speed_main", "temp_chlor", "temp_main", "weight_main")
+l_once_input <- c("flow_las", "flow_naoh", "flow_water")
+l_physical_input <- c(l_continuous_input, l_once_input)
+
+l_signal <- sprintf("data/df_%s_mixer_batch_binded.qs", l_physical_input)
+
+df_batches <- qs::qread("data/df_batches.qs") |> data.table::data.table()
+
+l_data <- lapply(seq_len(length(l_physical_input)), function(index) {
+  val_material <- l_physical_input[[index]]
+  l_data_signal <- qs::qread(l_signal[[index]])
+  cat(sprintf("Read material %s with %s batches \n", val_material, length(l_data_signal)))
+  l_data_signal
+})
+
+naming_w_batch <- function(l_dta) {
+  names(l_dta) <- lapply(l_dta, function(tbl) {
+    if (nrow(tbl) > 0) return(unique(tbl$batch))
+    "missing"
+  })
+  return(l_dta)
+}
+l_data <- lapply(l_data, function(l_signal) {
+  l_named_signal <- naming_w_batch(l_signal)
+  cat(sprintf("%s batch missing value \n", (names(l_named_signal) == "missing") |> as.numeric() |> sum()))
+  l_named_signal
+})
+names(l_data) <- l_physical_input
+
+average_per_5 <- function(df_batches, val_signal, l_data) {
+  l_means <- lapply(seq_len(nrow(df_batches)), function(idx) {
+    dta <- l_data[[as.character(df_batches[idx, batch_name])]] |> data.table::data.table()
+    v_frame_start <- df_batches[idx, start] + 300 * c(0, 1, 2, 3, 4)
+    # cat(sprintf("Batch no %s material %s starting ts %s\n", idx, val_signal, df_batches[idx, start]))
+    l_values <- lapply(v_frame_start, function(start_ts) {
+      val <- tryCatch({
+        max_value <- dta[[val_signal]] |> max()
+        dta[TS >= (start_ts) & TS <= (start_ts) + 300 & (val_signal) > (max_value * 0.01), ][[val_signal]] |> mean()
+      }, error = function(e) {
+        NA_real_
+      })
+    })
+    l_values[is.na(l_values)] <- 0
+    names(l_values) <- sprintf("%s_%s", val_signal, seq_len(5))
+    cat(sprintf("Mean value %s\n", str(l_values))) 
+    l_values |> data.frame() |> data.table::as.data.table()
+  })
+  data.table::rbindlist(l_means, use.names = TRUE)
+}
+
+lapply(l_continuous_input, function(val_signal) {
+  if (!val_signal %in% c("speed_main")) v_means <- average_per_5(df_batches, val_signal, l_data[[val_signal]])
+  else v_means <- average_per_5(df_batches, "speed_pump", l_data[[val_signal]])
+
+  df_batches <<- cbind(df_batches, v_means)
+  NULL
+}) |> unlist()
+
+get_average_once <- function(df_batches, val_signal, l_data) {
+  val_mean <- lapply(seq_len(nrow(df_batches)), function(idx) {
+    dta <- l_data[[as.character(df_batches[idx, batch_name])]] |> data.table::data.table()
+    v_result <- tryCatch({
+      max_value <- dta[[val_signal]] |> max()
+      dta[(val_signal) > (max_value * 0.01), ][[val_signal]] |> mean()
+    }, warning = function(w) 0)
+    cat(sprintf("Batch no %s signal %s mean value %s\n", idx, val_signal, v_result))
+    v_result
+  }) |> unlist()
+  val_mean
+}
+
+lapply(l_once_input, function(val_signal) {
+  df_batches[[val_signal]] <<- get_average_once(df_batches, val_signal, l_data[[val_signal]])
+  NULL
+}) |> unlist()
+
+df_batches$flow_naoh <- df_batches$flow_naoh / 100
+df_batches |> qs::qsave("data/train/feature_engineer_physical.qs")
+```
+
+```{r}
+l_continuous_input <- c("agitator", "press_main", "speed_main", "temp_chlor", "temp_main")
+l_once_input <- c("flow_las", "flow_naoh", "flow_water")
+l_physical_input <- c(l_continuous_input, l_once_input)
+
+df_batches <- qs::qread("data/train/feature_engineer_physical.qs")
+```
+
+```{r}
+fig_continuous <- function(df_batches, val_signal) {
+  if (val_signal %in% c("speed_main")) val_signal <- "speed_pump"
+  val_names <- stringi::stri_replace_all_fixed(val_signal, pattern = "_", replacement = " ") |> stringr::str_to_title()
+  v_cols <- sprintf("%s_%s", val_signal, seq_len(5))
+  df_melt <- reshape2::melt(df_batches, id.vars = "batch_name", measure.vars = v_cols)
+  fig_physical <- ggplot2::ggplot(data = df_melt) +
+    ggplot2::geom_boxplot(ggplot2::aes(x = batch_name, y = value, color = variable), outlier.shape = 1, outlier.size = 0.7) +
+    ggplot2::labs(color = val_names) + ggplot2::xlab("") + ggplot2::ylab("Value") + ggplot2::scale_x_discrete(labels = "") +
+    ggplot2::theme_bw()
+  plot(fig_physical)
+}
+```
+
+```{r}
+#| fig-cap: Boxplot physical features
+#| fig-subcap: 
+#| - Agitator of main mixer
+#| - Circulation pressure
+#| layout-nrow: 2
+#| label: fig-physical-1
+#| fig-pos: "htbp"
+fig_continuous(df_batches, "agitator")
+fig_continuous(df_batches, "press_main")
+```
+
+```{r}
+#| fig-cap: Boxplot physical features
+#| fig-subcap: 
+#| - Speed of pump
+#| - Chlorinated water temperature
+#| layout-nrow: 2
+#| label: fig-physical-2
+#| fig-pos: "htbp"
+fig_continuous(df_batches, "speed_main")
+fig_continuous(df_batches, "temp_chlor")
+```
+
+```{r}
+#| fig-cap: Boxplot physical features
+#| fig-subcap: 
+#| - Temperature of main mixer
+#| - Flow of liquid materials
+#| layout-nrow: 2
+#| label: fig-physical-3
+#| fig-pos: "htbp"
+fig_continuous(df_batches, "temp_main")
+fig_continuous(df_batches, "weight_main")
+```
+
+```{r}
+#| fig-cap: Boxplot physical features for dosing phases
+#| label: fig-physical-4
+#| fig-pos: "htbp"
+df_melt <- reshape2::melt(df_batches, id.vars = "batch_name", measure.vars = l_once_input)
+fig_once_input <- ggplot2::ggplot(data = df_melt) +
+  ggplot2::geom_boxplot(ggplot2::aes(x = batch_name, y = value, color = variable), outlier.shape = 1, outlier.size = 0.7) +
+  ggplot2::labs(color = "Flow of material") + ggplot2::xlab("Batches") + ggplot2::ylab("Value") +
+  ggplot2::theme_bw()
+plot(fig_once_input)
+```
+
+```{r, eval = FALSE}
+df_material <- qs::qread("data/train/feature_engineer_material.qs")
+df_physical <- qs::qread("data/train/feature_engineer_physical.qs")
+
+df_features <- merge(x = df_material, y = df_physical,
+  by = c("batch_name", "start", "end", "duration"),
+  all.x = TRUE, all.y  = FALSE
+)
+df_features <- df_features[order(df_features$start)]
+qs::qsave(df_features, "data/train/all_features.qs")
+```
+
+```{r}
+df_features <- qs::qread("data/train/all_features.qs")
+```
+
+[@fig-physical-1; @fig-physical-2; @fig-physical-3; @fig-physical-4] shows the result of the feature engineering process. We achieved a set of $31$ new features. For the dataset of physical features, we do not conduct a process of removing outliers. Instead, we merge the above dataset with the dataset of liquid materials amount in the previous section, resulting in a `{r} nrow(df_features)`-row dataset with `{r} length(colnames(df_features))` columns.
+
+## SHAP for feature selection and model explanation {#sec-shap-feature-selection}
+
+In [@sec-shap], we reviewed the literature around the applications of SHAP value. Besides the main purpose of SHAP which is to improve the transparency of models [@lunberg_shap_2017; @nohara_explanation_2022; @antwarg_explaining_2021], SHAP is also used as a feature selection mechanism [@zacharias_designing_2022; @marcilio_explanations_2020; @fryer_shapley_2021]. To interpret an ML model, Molnar suggests an approach for SHAP visualization in [@molnar2020interpretable]:
+
+-   SHAP Feature importance
+-   SHAP Summary plot
+-   SHAP Dependence plot
+-   SHAP Interaction values
+
+In terms of the feature selection mechanism with SHAP, the features are ordered by their SHAP Feature importance computed after an initial model is built. Then the top features are selected to train a new model [@fryer_shapley_2021]. As Fryer et al. discussed in [@fryer_shapley_2021], keeping $42\%$ to $80\%$ of features achieved better performance than feature selection using ANOVA, MI, or RFE.
+
+In this study, we try to follow these researchers by using the SHAP value of models to interpret themselves, then, get the features whose scores are at the top to build the next models.
