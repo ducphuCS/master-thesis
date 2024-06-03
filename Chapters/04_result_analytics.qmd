@@ -406,21 +406,7 @@ beeswarm(lr_explaination[~lr_error_percent_mask, :])
 
 We also draw [@fig-shap-baseline-ph-2-percent] to discuss the difference of feature importances between the data points accurately and wrongly predicted. Since the magnitude of pH is much smaller than viscosity, we choose the value of $2\%$ as a threshold for determining the correctness of the predictions. No real difference detected between [@fig-shap-baseline-ph-2-percent-1; @fig-shap-baseline-ph-2-percent-3] and [@fig-shap-baseline-ph-2-percent-2; @fig-shap-baseline-ph-2-percent-4] leads us to the hypothesis that the fact models predict rightly or not does not depend on the exceptional cases of data points, but is because of the dataset used in the process of making the ML models.
 
-:::{.callout-important}
-Plot the dependence plot for *water* and *NaOH* of the Random Forest model and investigate.
-:::
-
 ## Models with SHAP-based feature selection {#sec-shap-models}
-
-:::{.callout-note}
-Establish a feature selection mechanism with SHAP
-
-- Initiate a model with all features
-- Ranking the features with SHAP
-- Two different approaches
-  - Select subsets of 10%, 15%, 25%, 50%, 80% original set.
-  - A loop of getting an 80% set of features until the performance does not go any higher
-:::
 
 ```{r}
 library(data.table)
