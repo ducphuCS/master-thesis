@@ -1,15 +1,389 @@
-# Frequently Asked Questions {#sec-appA}
+```{r, eval = FALSE}
+library(data.table)
+library(magrittr)
+df_features <- qs::qread("data/train/all_features.qs")
+```
 
-## How do I change the colors of links?
+```{python, eval = FALSE}
+from sklearn.model_selection import train_test_split
+from xgboost import XGBRegressor
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVR
+from shap import Explainer, KernelExplainer, sample
+import numpy as np
+import pandas as pd
+import pickle
+```
 
-Pass in `urlcolor: ` in yaml. Or set these in the include-in-header file.
+```{r, eval = FALSE}
+features_ph <- qs::qread("data/train/features_ph.qs")
+features_vis <- qs::qread("data/train/features_vis.qs")
+```
 
-\noindent If you want to completely hide the links, you can use:
+```{python, eval = FALSE}
+X_pH = r.features_ph.iloc[:, :-1]
+X_ph_train, X_ph_test, y_ph_train, y_ph_test = train_test_split(
+  X_pH,
+  r.features_ph["label"],
+  test_size = 0.3, random_state=1
+)
 
-{\small\verb!\hypersetup{allcolors=.}!}, or even better: 
+X_vis = r.features_vis.iloc[:, :-1]
+X_vis_train, X_vis_test, y_vis_train, y_vis_test = train_test_split(
+  X_vis,
+  r.features_vis["label"],
+  test_size = 0.3, random_state=1
+)
+```
 
-{\small\verb!\hypersetup{hidelinks}!}.
+# Experiment with different architecture
 
-\noindent If you want to have obvious links in the PDF but not the printed text, use:
+```{python, eval = FALSE}
+l_result = dict()
+i = 0
+```
 
-{\small\verb!\hypersetup{colorlinks=false}!}.
+```{python, eval = FALSE}
+# This is the training code for both viscosity and pH
+# Be careful
+version = "v" + str(i)
+print(version)
+vis_model = XGBRegressor(random_state=19)
+vis_model.fit(X_vis_train, y_vis_train)
+score = vis_model.score(X_vis_test, y_vis_test)
+print(score)
+
+f = open("data/appendix/xgb/vis/models/{}.pkl".format(version), "wb")
+pickle.dump(vis_model, f)
+f.close()
+
+explainer = Explainer(vis_model)
+explanation = explainer(X_vis_test)
+
+f = open("data/appendix/xgb/vis/explanations/{}.pkl".format(version), "wb")
+pickle.dump(explanation, f)
+f.close()
+
+shap_vals = np.abs(explanation.values).mean(0)
+feature_importance = pd.DataFrame(list(zip(X_vis_train.columns, shap_vals)), columns=['col_name','feature_importance_vals'])
+feature_importance.sort_values(by=['feature_importance_vals'], ascending=False,inplace=True)
+
+print(feature_importance.head(10))
+print(feature_importance.head(round(feature_importance.shape[0] * 0.5))["col_name"])
+new_features_idx = feature_importance.head(round(feature_importance.shape[0] * 0.5))["col_name"].index.to_numpy()
+print(feature_importance.loc[new_features_idx, "col_name"])
+
+f = open("data/appendix/xgb/vis/features_subset/{}.pkl".format(version), "wb")
+pickle.dump(new_features_idx, f)
+f.close()
+
+l_result[version] = {
+  "score": score,
+  "train_set": X_vis_train,
+  "test_set": X_vis_test,
+  "feature_importance": feature_importance,
+  "new_features_idx": new_features_idx
+}
+
+X_vis_train = X_vis_train.iloc[:, new_features_idx]
+X_vis_test = X_vis_test.iloc[:, new_features_idx]
+i += 1
+```
+
+```{python, eval = FALSE}
+l_result["v0"]["score"]
+l_result["v1"]["score"]
+l_result["v2"]["score"]
+l_result["v3"]["score"]
+
+f = open("data/appendix/xgb/vis/result.pkl", "wb")
+pickle.dump(l_result, f)
+f.close()
+```
+
+
+```{python, eval = FALSE}
+X_vis = r.features_vis.iloc[:, :-1]
+scaler = StandardScaler()
+X_vis_train, X_vis_test, y_vis_train, y_vis_test = train_test_split(
+  scaler.fit_transform(X_vis),
+  r.features_vis["label"],
+  test_size = 0.3, random_state=1
+)
+X_vis_train = pd.DataFrame(X_vis_train, columns = X_vis.columns)
+X_vis_test = pd.DataFrame(X_vis_test, columns = X_vis.columns)
+```
+
+```{python, eval = FALSE}
+l_result = dict()
+i = 0
+```
+
+```{python, eval = FALSE}
+# This is the training code for both viscosity and pH
+# Be careful
+version = "v" + str(i)
+print(version)
+vis_model = SVR()
+vis_model.fit(X_vis_train, y_vis_train)
+score = vis_model.score(X_vis_test, y_vis_test)
+print(score)
+
+f = open("data/appendix/svr/vis/models/{}.pkl".format(version), "wb")
+pickle.dump(vis_model, f)
+f.close()
+
+explainer = Explainer(vis_model.predict, sample(X_vis_test, 100))
+explanation = explainer(sample(X_vis_test, 100))
+
+f = open("data/appendix/svr/vis/explanations/{}.pkl".format(version), "wb")
+pickle.dump(explanation, f)
+f.close()
+
+shap_vals = np.abs(explanation.values).mean(0)
+feature_importance = pd.DataFrame(list(zip(X_vis_train.columns, shap_vals)), columns=['col_name','feature_importance_vals'])
+feature_importance.sort_values(by=['feature_importance_vals'], ascending=False,inplace=True)
+
+print(feature_importance.head(10))
+print(feature_importance.head(round(feature_importance.shape[0] * 0.5))["col_name"])
+new_features_idx = feature_importance.head(round(feature_importance.shape[0] * 0.5))["col_name"].index.to_numpy()
+print(feature_importance.loc[new_features_idx, "col_name"])
+
+f = open("data/appendix/svr/vis/features_subset/{}.pkl".format(version), "wb")
+pickle.dump(new_features_idx, f)
+f.close()
+
+l_result[version] = {
+  "score": score,
+  "train_set": X_vis_train,
+  "test_set": X_vis_test,
+  "feature_importance": feature_importance,
+  "new_features_idx": new_features_idx
+}
+
+X_vis_train = X_vis_train.iloc[:, new_features_idx]
+X_vis_test = X_vis_test.iloc[:, new_features_idx]
+i += 1
+```
+
+```{python, eval = FALSE}
+l_result["v0"]["score"]
+l_result["v1"]["score"]
+l_result["v2"]["score"]
+l_result["v3"]["score"]
+
+f = open("data/appendix/svr/vis/result.pkl", "wb")
+pickle.dump(l_result, f)
+f.close()
+```
+
+
+In this appendix, we experiment with two different machine learning architectures that is usually compared with the *Random Forest*, namely the *XGBoost*, a more sophisticated variant of *Random Forest*, and *Support Vector Machine* with *Support Vector Regressor* (SVR) join as a representative.
+
+```{python}
+import pickle
+
+f = open("data/appendix/xgb/ph/result.pkl", "rb")
+l_result_xgb_ph = pickle.load(f)
+f.close()
+
+f = open("data/appendix/xgb/vis/result.pkl", "rb")
+l_result_xgb_vis = pickle.load(f)
+f.close()
+
+f = open("data/appendix/svr/ph/result.pkl", "rb")
+l_result_svr_ph = pickle.load(f)
+f.close()
+
+f = open("data/appendix/svr/vis/result.pkl", "rb")
+l_result_svr_vis = pickle.load(f)
+f.close()
+
+f = open("data/shap_models_ph/result.pkl", "rb")
+l_result_rfr_ph = pickle.load(f)
+f.close()
+
+f = open("data/shap_models_vis/result.pkl", "rb")
+l_result_rfr_vis = pickle.load(f)
+f.close()
+```
+
+## Performance comparision
+
+```{r}
+dta_result_ph <- data.table::data.table(
+  model = character(),
+  iteration = character(),
+  result = numeric()
+)
+
+l_result_xgb_ph <- reticulate::py$l_result_xgb_ph
+l_result_svr_ph <- reticulate::py$l_result_svr_ph
+l_result_rfr_ph <- reticulate::py$l_result_rfr_ph
+
+l_ph_models <- list(
+  XGBoost = l_result_xgb_ph,
+  SVM = l_result_svr_ph,
+  RandomForest = l_result_rfr_ph
+)
+
+l_result_tables <- lapply(names(l_ph_models), function(val_model) {
+  l_results <- l_ph_models[[val_model]]
+  v_iteration <- names(l_results)
+  v_score <- lapply(v_iteration, function(val_iteration) {
+    l_results[[val_iteration]]$score
+  }) |> unlist()
+  data.table::data.table(
+    model = val_model,
+    iteration = v_iteration,
+    result = v_score
+  )
+})
+dta_ph_score <- data.table::rbindlist(l_result_tables)
+```
+
+```{r}
+#| fig-pos: "htbp"
+#| label: fig-ph-score-comparison
+#| fig-cap: Comparison in performance for pH
+fig_ph_score_comparison <- ggplot2::ggplot(data = dta_ph_score, 
+    mapping = ggplot2::aes(x = iteration, group = model)
+  ) +
+  ggplot2::geom_line(mapping = ggplot2::aes(y = result, color = model), show.legend = FALSE) +
+  ggplot2::geom_point(mapping = ggplot2::aes(y = result, color = model), show.legend = FALSE) +
+  ggplot2::geom_label(mapping = ggplot2::aes(y = result,label = model), 
+    data = dta_ph_score[iteration == "v3"], nudge_x = 0.15
+  ) +
+  ggplot2::theme_bw()
+
+plot(fig_ph_score_comparison)
+```
+
+```{r}
+dta_result_vis <- data.table::data.table(
+  model = character(),
+  iteration = character(),
+  result = numeric()
+)
+
+l_result_xgb_vis <- reticulate::py$l_result_xgb_vis
+l_result_svr_vis <- reticulate::py$l_result_svr_vis
+l_result_rfr_vis <- reticulate::py$l_result_rfr_vis
+
+l_vis_models <- list(
+  XGBoost = l_result_xgb_vis,
+  SVM = l_result_svr_vis,
+  RandomForest = l_result_rfr_vis
+)
+
+l_result_tables <- lapply(names(l_vis_models), function(val_model) {
+  l_results <- l_vis_models[[val_model]]
+  v_iteration <- names(l_results)
+  v_score <- lapply(v_iteration, function(val_iteration) {
+    l_results[[val_iteration]]$score
+  }) |> unlist()
+  data.table::data.table(
+    model = val_model,
+    iteration = v_iteration,
+    result = v_score
+  )
+})
+dta_vis_score <- data.table::rbindlist(l_result_tables)
+```
+
+```{r}
+#| fig-pos: "htbp"
+#| label: fig-vis-score-comparison
+#| fig-cap: Comparision in performance for viscosity
+fig_vis_score_comparison <- ggplot2::ggplot(data = dta_vis_score, 
+    mapping = ggplot2::aes(x = iteration, group = model)
+  ) +
+  ggplot2::geom_line(mapping = ggplot2::aes(y = result, color = model), show.legend = FALSE) +
+  ggplot2::geom_point(mapping = ggplot2::aes(y = result, color = model), show.legend = FALSE) +
+  ggplot2::geom_label(mapping = ggplot2::aes(y = result,label = model), 
+    data = dta_vis_score[iteration == "v3"], nudge_x = 0.15
+  ) +
+  ggplot2::theme_bw()
+
+plot(fig_vis_score_comparison)
+```
+
+[@fig-ph-score-comparison; @fig-vis-score-comparison] shows us the performance of two quite similar architectures, *Random Forest* and *XGBoost*, have relatively the same result, with the *XGBoost* in the lower side. This can be understandable since the more complicated the model is, the more data it requires. However, the behavior of the SVR is unexpected since we supposed that the result of SVR should been on the same page as the other two. The conclusion we have in this situation is that tree-based models like *Random Forest* and *XGBoost* are more suitable for the under-consideration dataset.
+
+Next, we move on to the features selected for each type of architecture.
+
+## Feature importance
+
+```{r}
+dta_result_ph <- data.table::data.table(
+  model = character(),
+  feature = character(),
+  importance = numeric()
+)
+
+l_result_xgb_ph <- reticulate::py$l_result_xgb_ph
+l_result_svr_ph <- reticulate::py$l_result_svr_ph
+l_result_rfr_ph <- reticulate::py$l_result_rfr_ph
+
+l_ph_models <- list(
+  XGBoost = l_result_xgb_ph,
+  SVR = l_result_svr_ph,
+  RandomForest = l_result_rfr_ph
+)
+l_result_tables <- lapply(names(l_ph_models), function(val_model) {
+  l_results <- l_ph_models[[val_model]]
+  v_features <- l_results[["v3"]]$feature_importance$col_name
+  data.frame(v_features)
+})
+dta_ph_features <- cbind(l_result_tables[[1]], l_result_tables[[2]], l_result_tables[[3]])
+colnames(dta_ph_features) <- names(l_ph_models)
+```
+
+```{r}
+#| label: tbl-ph-feature-comparison
+#| tbl-cap: Selected features of the final iteration for pH models
+knitr::kable((dta_ph_features))
+```
+
+
+```{r}
+dta_result_vis <- data.table::data.table(
+  model = character(),
+  feature = character(),
+  importance = numeric()
+)
+
+l_result_xgb_vis <- reticulate::py$l_result_xgb_vis
+l_result_svr_vis <- reticulate::py$l_result_svr_vis
+l_result_rfr_vis <- reticulate::py$l_result_rfr_vis
+
+l_vis_models <- list(
+  XGBoost = l_result_xgb_vis,
+  SVR = l_result_svr_vis,
+  RandomForest = l_result_rfr_vis
+)
+l_result_tables <- lapply(names(l_vis_models), function(val_model) {
+  l_results <- l_vis_models[[val_model]]
+  v_features <- l_results[["v3"]]$feature_importance$col_name
+  data.frame(v_features)
+})
+dta_vis_features <- cbind(l_result_tables[[1]], l_result_tables[[2]], l_result_tables[[3]])
+colnames(dta_vis_features) <- names(l_vis_models)
+```
+
+```{r}
+#| label: tbl-vis-feature-comparison
+#| tbl-cap: Selected features of the final iteration for viscosity models
+knitr::kable((dta_vis_features))
+```
+
+In this section, the models used before will be investigated in terms of their features which remain after three iterations of feature selection. Insights that we realize are discussed below. First is the conclusion of pH models:
+
+- The amount of LAS, `las_main` the most influence feature for pH in all three models
+- The speed of Las flushed into the main mixer, the amount of NaOH and the weight of the main mixer from 5 to 10 minutes (represented by `flow_las`, `naoh_main` and `weight_main_2`), are kept by the models of *Random Forest* and *XGBoost*, but *SVR*.
+- *SVR* has some unexpected features, such as the amount of Dehydol (`dehydol`) and reworked water (`rework`).
+
+Regarding the models for viscosity, we have the following insights:
+
+- The amount of chlorinated water, `water_main`, contributed the most in all three models.
+- Major materials like LAS (`las_main`) and NaOH (`naoh_main`) appear in three models as well. The same is true for the speed of the main mixer agitator in the first 5 minutes of batches (`agitator_1`).

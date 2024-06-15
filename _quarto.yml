@@ -15,8 +15,8 @@ book:
     - Chapters/04_result_analytics.qmd
     - Chapters/05_summary.qmd
     - Chapters/06_references.qmd
-  # appendices:
-  #   - Appendices/AppendixA.qmd
+  appendices:
+    - Appendices/AppendixA.qmd
   downloads: pdf
   repo-url: https://github.com/ducphuCS/master-thesis/
   repo-actions: [edit, source, issue]

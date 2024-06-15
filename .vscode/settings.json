@@ -3,6 +3,15 @@
     {
       "language": "quarto",
       "scheme": "file"
+    },
+    {
+      "language": "latex",
+      "scheme": "file"
+    },
+    {
+      "language": "yaml",
+      "scheme": "file",
+      "pattern": "_quarto.yml"
     }
   ]
 }
