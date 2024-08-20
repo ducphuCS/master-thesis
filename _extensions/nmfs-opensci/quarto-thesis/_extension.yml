@@ -5,7 +5,7 @@ contributes:
   format:
     pdf:
       documentclass: MastersDoctoralThesis
-      classoption: ["13pt", "english", "onehalfspacing", "headsepline"]
+      classoption: ["13pt", "english", "onehalfspacing", "headsepline", "oneside"]
       format-resources:
         - MastersDoctoralThesis.cls
       template-partials: 

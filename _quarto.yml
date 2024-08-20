@@ -3,8 +3,8 @@ project:
   type: book
 
 book:
-  title: PREDICTING QUALITY OF HOME CARE LIQUID PRODUCTS
-  date: "Ho Chi Minh City, March 28, 2024"
+  title: PREDICTING QUALITY OF HOME CARE LIQUID PRODUCTS 
+  date: "HO CHI MINH CITY, June 2024"
   author:
     name: "Nguyễn Đức Phú"
   abstract: "The industrial applications for machine learning are the main concern for the research community, with interpretability increasingly gaining attention. We contribute this study to propose an approach for a traditional problem in the industry of chemical engineering, predicting the quality of home care liquid products but only focusing on the explainability of the intelligence system. By conducting domain-based feature engineering, we ensure the inputs extracted from industrial instrument time series data are understandable by users. Two different approaches, which are using a transparent architecture like Linear Regression and conducting post hoc analysis with SHAP value for an ensemble model Random Forest Regression, are experimented with in the study. The results are promising in that the ensemble models achieved over 70% accuracy while the influencing features are aligned with domain expertise. In conclusion, the study provides a practical example of deploying an explainable artificial intelligence solution in a traditional industry such as chemical engineering."
@@ -52,7 +52,6 @@ csl: ieee.csl
 format:
   html:
     theme: lux
-  quarto-thesis-pdf:
-    pdf-engine: lualatex
+  quarto-thesis-pdf: default
 
 citeproc: true

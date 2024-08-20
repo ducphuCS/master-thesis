@@ -8,28 +8,40 @@
 
 \begin{titlepage}
 \begin{center}
-
+\setcounter{page}{0}
 \vspace*{.06\textheight}
 {\scshape \univname\par} % University name
 \textbf{\deptname}\\[2cm] % Research group name and department name
 
-{\large \authorname} \\[2cm]
+{\large NGUYỄN ĐỨC PHÚ} \\[3cm]
 % \textsc{\Large Doctoral Thesis}\\[0.5cm] % Thesis type
-\textsc{\Large MASTER'S THESIS}\\[0.5cm]
 
-\HRule \\[0.4cm] % Horizontal line
-{\huge \bfseries \ttitle\par}\vspace{0.4cm} % Thesis title
-\HRule \\[1.5cm] % Horizontal line
- 
-% \begin{minipage}[t]{0.4\textwidth}
-% \begin{flushleft} \large
-% \emph{Author:}\\
-% $if(author.url)$
-% \href{$author.url$}{\authorname} % Author name - remove the \href bracket to remove the link
-% $else$
-% $endif$
-% \end{flushleft}
-% \end{minipage}
+
+% \HRule \\[0.4cm] % Horizontal line
+{\huge \bfseries \ttitle\par}\vspace{3cm} % Thesis title
+% \HRule \\[1.5cm] % Horizontal line
+
+\begin{minipage}[t]{1.2\textwidth}
+  \begin{flushleft} \large
+    Major:
+    $if(author.url)$
+    \href{$author.url$}{\authorname} % Author name - remove the \href bracket to remove the link
+    $else$
+    Computer Science
+    $endif$
+  \end{flushleft}
+  \begin{flushleft} \large
+    Major code:
+    $if(author.url)$
+    \href{$author.url$}{\authorname} % Author name - remove the \href bracket to remove the link
+    $else$
+    8480101
+    $endif$
+  \end{flushleft}
+\end{minipage}
+\vspace{2cm}
+
+\textsc{\Large MASTER'S THESIS}\\[0.5cm]
 % \begin{minipage}[t]{0.4\textwidth}
 % \begin{flushright} \large
 % \emph{Supervisor:} \\
@@ -51,13 +63,13 @@
  
 % \vfill
 
-$if(thesis.logo)$
-$if(thesis.logo-height)$
-\includegraphics[height=$thesis.logo-height$]{$thesis.logo$} % University/department logo
-$else$
-\includegraphics{$thesis.logo$}
-$endif$
-$endif$
+% $if(thesis.logo)$
+% $if(thesis.logo-height)$
+% \includegraphics[height=$thesis.logo-height$]{$thesis.logo$} % University/department logo
+% $else$
+% \includegraphics{$thesis.logo$}
+% $endif$
+% $endif$
 
 $if(book.date)$
 {\large $book.date$}\\[4cm] % Date
@@ -67,6 +79,50 @@ $endif$
 \vfill
 \end{center}
 \end{titlepage}
+
+$if(thesis.acknowledgements)$
+%----------------------------------------------------------------------------------------
+%	ACKNOWLEDGEMENTS
+%----------------------------------------------------------------------------------------
+
+\begin{acknowledgements}
+\addchaptertocentry{\acknowledgementname} % Add the acknowledgements to the table of contents
+$if(thesis.acknowledgements.text)$
+$thesis.acknowledgements.text$
+$else$
+\input{"$thesis.acknowledgements$"}
+$endif$
+\end{acknowledgements}
+
+$endif$
+
+$if(abstract)$
+%----------------------------------------------------------------------------------------
+%	ABSTRACT PAGE
+%----------------------------------------------------------------------------------------
+
+\begin{abstract}
+\addchaptertocentry{\abstractname} % Add the abstract to the table of contents
+$abstract$
+\end{abstract}
+$endif$
+
+
+\begin{abstractVN}
+  \begin{center}
+    \justifying
+    % {\huge\textbf{Tóm tắt Luận văn} \par}
+    % \bigskip
+    % {\normalsize \byname{} \authorname \par}% Author name
+    % \medskip
+    {
+      Ứng dụng Học máy trong công nghiệp là mối quan tâm chính của cộng đồng nghiên cứu, trong đó tăng cường khả năng diễn giải cho mô hình học máy ngày càng được chú ý.
+      Nghiên cứu này đề xuất một phương pháp cho một vấn đề truyền thống trong ngành công nghiệp hóa chất là dự đoán chất lượng sản phẩm nước vệ sinh nhà cửa, tập trung vào khả năng giải thích của hệ thống thông minh. Bằng cách thực hiện trích xuất đặc trưng mô hình dựa trên kiến thức lĩnh vực chuyên môn, luận văn đảm bảo các dữ liệu đầu vào xử lý từ chuỗi giá trị từ máy móc thiết bị có thể hiểu được bởi người dùng.
+      Nghiên cứu đã thử nghiệm hai phương pháp khác nhau: sử dụng kiến trúc “trong suốt” như Hồi quy tuyến tính và thực hiện phân tích hậu nghiệm bằng giá trị SHAP cho mô hình Hồi quy Rừng ngẫu nhiên. Kết quả cho thấy các mô hình xây dựng được đạt độ chính xác trên 70\%. Các đặc trưng quan trọng tìm được phù hợp với kiến thức chuyên môn.
+      Tổng kết, nghiên cứu cung cấp một ví dụ thực tiễn về việc triển khai giải pháp trí tuệ nhân tạo có thể giải thích được trong một ngành truyền thống như hóa chất.
+    }
+  \end{center}
+\end{abstractVN}
 
 %----------------------------------------------------------------------------------------
 %	DECLARATION PAGE
@@ -81,8 +137,7 @@ $else$
 $endif$
 
 \end{declaration}
-
-\cleardoublepage
+\clearpage
 $endif$
 
 $if(thesis.quotation)$
@@ -102,33 +157,6 @@ $endif$
 
 $endif$
 
-$if(abstract)$
-%----------------------------------------------------------------------------------------
-%	ABSTRACT PAGE
-%----------------------------------------------------------------------------------------
-
-\begin{abstract}
-\addchaptertocentry{\abstractname} % Add the abstract to the table of contents
-$abstract$
-\end{abstract}
-
-$endif$
-
-$if(thesis.acknowledgements)$
-%----------------------------------------------------------------------------------------
-%	ACKNOWLEDGEMENTS
-%----------------------------------------------------------------------------------------
-
-\begin{acknowledgements}
-\addchaptertocentry{\acknowledgementname} % Add the acknowledgements to the table of contents
-$if(thesis.acknowledgements.text)$
-$thesis.acknowledgements.text$
-$else$
-\input{"$thesis.acknowledgements$"}
-$endif$
-\end{acknowledgements}
-
-$endif$
 
 % $--	LIST OF CONTENTS/FIGURES/TABLES PAGES
 

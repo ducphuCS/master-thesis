@@ -367,6 +367,26 @@ KOMA-script documentation for details.}]{fancyhdr}
 	}
 }
 
+%----------------------------------------------------------------------------------------
+%	ABSTRACT VN PAGE DESIGN
+%----------------------------------------------------------------------------------------
+
+\DeclareDocumentEnvironment{abstractVN}{ O{\null\vfill} }{
+	\checktoopen
+	\tttypeout{\abstractname}
+	#1%added to be able to have abstract more than one page long
+	\thispagestyle{plain}
+	\begin{center}
+    {\huge\textbf{Tóm tắt Luận văn} \par}
+    \bigskip
+    {\normalsize \byname{} \authorname \par}% Author name
+    \medskip
+	\end{center}
+}
+{
+	\vfill\null
+}
+
 \DeclareDocumentEnvironment{extraAbstract}{ O{\null\vfill} }{
 	\checktoopen
 	\tttypeout{\abstractname}
